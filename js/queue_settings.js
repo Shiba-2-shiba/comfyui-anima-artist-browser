@@ -1,11 +1,9 @@
 import { buildSlotState } from "./slot_state.js";
 
-export const ANIMA_RANDOM_COUNT_KEY = "_anima_random_count";
 export const ANIMA_PIN_FAVORITES_KEY = "_anima_pin_favorites";
 export const ANIMA_QUEUE_MODE_KEY = "_anima_queue_mode";
 export const ANIMA_AUTO_QUEUE_KEY = "_anima_auto_queue";
 
-const WIDGET_RANDOM_COUNT = "Random Count";
 const WIDGET_PIN_FAVORITES = "Pin Favorites";
 const WIDGET_QUEUE_MODE = "After Queue";
 const WIDGET_AUTO_QUEUE = "Auto Queue";
@@ -56,31 +54,6 @@ function pinnedSlots(state, favoriteTags, limit = state.maxSlots) {
         slots.push({ slotIndex, tag });
     });
     return slots;
-}
-
-export function normalizeRandomCount(value) {
-    const count = Number(value);
-    if (!Number.isFinite(count)) return 1;
-    return Math.max(1, Math.min(3, Math.trunc(count)));
-}
-
-export function readRandomCount(node) {
-    const props = ensureNodeProperties(node);
-    const widgetValue = getWidgetValue(node, WIDGET_RANDOM_COUNT);
-    if (widgetValue != null && widgetValue !== "") {
-        const normalized = normalizeRandomCount(widgetValue);
-        props[ANIMA_RANDOM_COUNT_KEY] = normalized;
-        return normalized;
-    }
-
-    return normalizeRandomCount(props[ANIMA_RANDOM_COUNT_KEY]);
-}
-
-export function writeRandomCount(node, value) {
-    const props = ensureNodeProperties(node);
-    const normalized = normalizeRandomCount(value);
-    props[ANIMA_RANDOM_COUNT_KEY] = normalized;
-    return normalized;
 }
 
 export function readPinFavorites(node) {
@@ -169,7 +142,6 @@ export async function loadFavoriteTagSet(fetchImpl = fetch) {
 export function buildRandomizedSlotState({
     state,
     artists,
-    count,
     pinFavorites = false,
     favoriteTags = new Set(),
     randomFn = Math.random,
@@ -178,7 +150,8 @@ export function buildRandomizedSlotState({
     const pool = uniqueArtists(artists);
     if (!pool.length) return current;
 
-    const targetCount = normalizeRandomCount(count);
+    const targetCount = current.tags.filter(Boolean).length;
+    if (!targetCount) return current;
     const lockedSlots = pinFavorites ? pinnedSlots(current, favoriteTags, targetCount) : [];
     const lockedTags = new Set(lockedSlots.map((entry) => entry.tag));
     const randomizedPool = shuffledArtists(

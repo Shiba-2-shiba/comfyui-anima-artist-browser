@@ -10,7 +10,6 @@ import {
     readAutoQueue,
     readPinFavorites,
     readQueueMode,
-    readRandomCount,
 } from "./queue_settings.js";
 
 function cycleBtn() {
@@ -103,7 +102,6 @@ export const AutoCycle = (() => {
                 : buildRandomizedSlotState({
                     state: previousState,
                     artists,
-                    count: readRandomCount(_node),
                     pinFavorites,
                     favoriteTags,
                 });

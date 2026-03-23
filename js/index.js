@@ -5,8 +5,6 @@ import { AutoCycle } from "./autocycle.js";
 import { MAX_ARTIST_SLOTS, clampSlotIndex } from "./slot_state.js";
 import { clearArtistSlots, getNodeSlotState, replaceArtistSlots, syncArtistState } from "./utils.js";
 import {
-    readRandomCount,
-    writeRandomCount,
     readPinFavorites,
     writePinFavorites,
     buildNextArtistSlotState,
@@ -272,7 +270,6 @@ async function advanceNodeAfterQueue(node) {
         : buildRandomizedSlotState({
             state: previousState,
             artists,
-            count: readRandomCount(node),
             pinFavorites,
             favoriteTags,
         });
@@ -327,29 +324,6 @@ function ensureButtonWidget(node, name, callback, aliases = []) {
     }
     if (typeof node.addWidget !== "function") return false;
     widget = node.addWidget("button", name, null, callback);
-    return !!widget;
-}
-
-function ensureRandomCountWidget(node) {
-    const widgets = ensureWidgetArray(node);
-    let widget = widgets.find((item) => String(item?.name || "") === "Random Count" && String(item?.type || "") === "combo");
-    const values = ["1", "2", "3"];
-
-    const onChange = (value) => {
-        const normalized = writeRandomCount(node, value);
-        if (widget) widget.value = String(normalized);
-        refreshNodeCanvas(node);
-    };
-
-    if (widget) {
-        widget.options = { ...(widget.options || {}), values };
-        widget.callback = onChange;
-        widget.value = String(readRandomCount(node));
-        return false;
-    }
-
-    if (typeof node.addWidget !== "function") return false;
-    widget = node.addWidget("combo", "Random Count", String(readRandomCount(node)), onChange, { values });
     return !!widget;
 }
 
@@ -464,7 +438,6 @@ function patchNode(node, force = false) {
     ensureResizePersistence(node);
     syncArtistState(node);
 
-    const addedRandomCount = ensureRandomCountWidget(node);
     const addedQueueMode = ensureQueueModeWidget(node);
     const addedPinFavorites = ensurePinFavoritesWidget(node);
     const addedAutoQueue = ensureAutoQueueWidget(node);
@@ -483,7 +456,6 @@ function patchNode(node, force = false) {
     reorderWidgets(node, [
         "Artist Browser",
         "After Queue",
-        "Random Count",
         "Pin Favorites",
         "Clear Artist",
         "_tag_display",
@@ -497,7 +469,7 @@ function patchNode(node, force = false) {
 
     growNodeIfNeeded(node);
 
-    if (addedRandomCount || addedQueueMode || addedPinFavorites || addedAutoQueue || addedQueueLoop || addedBrowser || addedClear || addedTag || collapsedArtists) {
+    if (addedQueueMode || addedPinFavorites || addedAutoQueue || addedQueueLoop || addedBrowser || addedClear || addedTag || collapsedArtists) {
         LAYOUT_REFRESH_DELAYS.forEach((delay, index) => {
             scheduleNodeTimer(node, `layout_${index}`, delay, () => {
                 if (!isNodeAlive(node)) return;
