@@ -9,6 +9,7 @@ import {
     writeRandomCount,
     readPinFavorites,
     writePinFavorites,
+    buildNextArtistSlotState,
     normalizeQueueMode,
     readQueueMode,
     writeQueueMode,
@@ -239,10 +240,76 @@ async function openStyleBrowser(node) {
     }
 }
 
-function queuePromptIfEnabled(node) {
-    if (!readAutoQueue(node)) return false;
-    app.queuePrompt?.(0, 1);
+function slotStatesMatch(left, right) {
+    const leftTags = Array.isArray(left?.tags) ? left.tags : [];
+    const rightTags = Array.isArray(right?.tags) ? right.tags : [];
+    if (leftTags.length !== rightTags.length) return false;
+    for (let i = 0; i < leftTags.length; i += 1) {
+        if (leftTags[i] !== rightTags[i]) return false;
+    }
     return true;
+}
+
+async function advanceNodeAfterQueue(node) {
+    if (!node || !isNodeAlive(node)) return false;
+
+    const mode = readQueueMode(node);
+    if (mode === "fixed") return false;
+
+    const artists = await Data.all();
+    if (!Array.isArray(artists) || !artists.length) return false;
+
+    const previousState = getNodeSlotState(node);
+    const pinFavorites = readPinFavorites(node);
+    const favoriteTags = pinFavorites ? await loadFavoriteTagSet(fetch) : new Set();
+    const nextState = mode === "next_artist"
+        ? buildNextArtistSlotState({
+            state: previousState,
+            artists,
+            pinFavorites,
+            favoriteTags,
+        })
+        : buildRandomizedSlotState({
+            state: previousState,
+            artists,
+            count: readRandomCount(node),
+            pinFavorites,
+            favoriteTags,
+        });
+
+    if (slotStatesMatch(previousState, nextState)) return false;
+
+    replaceArtistSlots(node, nextState.tags, nextState.currentSlot);
+    refreshNodeCanvas(node);
+    return true;
+}
+
+async function advanceQueuedNodesAfterSubmission() {
+    const nodes = (app.graph?._nodes || []).filter((node) => {
+        if (!isAnimaNode(node)) return false;
+        if (AutoCycle.isActiveFor?.(node)) return false;
+        if (readAutoQueue(node)) return false;
+        return readQueueMode(node) !== "fixed";
+    });
+
+    for (const node of nodes) {
+        try {
+            await advanceNodeAfterQueue(node);
+        } catch { }
+    }
+}
+
+function ensureQueuePromptHook() {
+    if (app._animaQueuePromptWrapped) return;
+    if (typeof app.queuePrompt !== "function") return;
+
+    const originalQueuePrompt = app.queuePrompt.bind(app);
+    app._animaQueuePromptWrapped = true;
+    app.queuePrompt = async function () {
+        const result = await originalQueuePrompt(...arguments);
+        await advanceQueuedNodesAfterSubmission();
+        return result;
+    };
 }
 
 function queueLoopButtonLabel(node) {
@@ -372,23 +439,6 @@ function ensureQueueLoopButton(node) {
     }, ["Start Queue Loop", "Stop Queue Loop"]);
 }
 
-async function applyRandomArtists(node) {
-    const artists = await Data.all();
-    if (!Array.isArray(artists) || !artists.length) return;
-    const pinFavorites = readPinFavorites(node);
-    const favoriteTags = pinFavorites ? await loadFavoriteTagSet(fetch) : new Set();
-    const nextState = buildRandomizedSlotState({
-        state: getNodeSlotState(node),
-        artists,
-        count: readRandomCount(node),
-        pinFavorites,
-        favoriteTags,
-    });
-
-    replaceArtistSlots(node, nextState.tags, nextState.currentSlot);
-    queuePromptIfEnabled(node);
-}
-
 function reorderWidgets(node, names = []) {
     const widgets = ensureWidgetArray(node);
     if (!widgets.length) return false;
@@ -414,10 +464,6 @@ function patchNode(node, force = false) {
     ensureResizePersistence(node);
     syncArtistState(node);
 
-    const addedRandom = ensureButtonWidget(node, "Random Artist", () => {
-        applyRandomArtists(node).catch(() => { });
-    }, ["Random Style"]);
-
     const addedRandomCount = ensureRandomCountWidget(node);
     const addedQueueMode = ensureQueueModeWidget(node);
     const addedPinFavorites = ensurePinFavoritesWidget(node);
@@ -436,7 +482,6 @@ function patchNode(node, force = false) {
     const collapsedArtists = collapseArtistInputWidgets(node);
     reorderWidgets(node, [
         "Artist Browser",
-        "Random Artist",
         "After Queue",
         "Random Count",
         "Pin Favorites",
@@ -452,7 +497,7 @@ function patchNode(node, force = false) {
 
     growNodeIfNeeded(node);
 
-    if (addedRandom || addedRandomCount || addedQueueMode || addedPinFavorites || addedAutoQueue || addedQueueLoop || addedBrowser || addedClear || addedTag || collapsedArtists) {
+    if (addedRandomCount || addedQueueMode || addedPinFavorites || addedAutoQueue || addedQueueLoop || addedBrowser || addedClear || addedTag || collapsedArtists) {
         LAYOUT_REFRESH_DELAYS.forEach((delay, index) => {
             scheduleNodeTimer(node, `layout_${index}`, delay, () => {
                 if (!isNodeAlive(node)) return;
@@ -502,6 +547,7 @@ app.registerExtension({
     },
 
     setup() {
+        ensureQueuePromptHook();
         INITIAL_GRAPH_SWEEP_DELAYS.forEach((delay) => {
             setTimeout(() => {
                 patchExistingNodes();
