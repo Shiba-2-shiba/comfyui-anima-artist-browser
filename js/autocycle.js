@@ -207,7 +207,10 @@ export const AutoCycle = (() => {
             setCurrentArtistSlot(node, options.slotIndex);
         }
 
-        applyStyle(node, artist, options);
+        const result = applyStyle(node, artist, options);
+        if (!result?.ok) {
+            return result;
+        }
 
         const autoQueue = readAutoQueue(node);
         _notify("applied", { artist, node, manual: true, autoQueue });
@@ -218,10 +221,11 @@ export const AutoCycle = (() => {
             if ((app.ui.lastQueueSize || 0) === 0) {
                 app.queuePrompt(0, 1);
             }
-            return;
+            return result;
         }
 
         _setStatus(`manual @${String(artist?.tag || "").replace(/_/g, " ")} ready`, true);
+        return result;
     }
 
     function subscribe(listener) {

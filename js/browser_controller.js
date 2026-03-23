@@ -53,13 +53,13 @@ export function createBrowserController({
     }
 
     async function mutateLocalFavorites(payload) {
-        const ok = await ensureLocalToken();
-        if (!ok) {
-            return { ok: false, error: "Local security token not available. Reopen the browser and try again." };
-        }
+        await ensureLocalToken();
 
         const result = await sendLocalFavoriteMutation(api, localHeaders(), payload);
         if (!result.ok) {
+            if (!store.localApiToken && result.status === 403) {
+                return { ok: false, error: result.error || "Favorite update is blocked for this browser origin." };
+            }
             return { ok: false, error: result.error || "Favorite update failed" };
         }
 

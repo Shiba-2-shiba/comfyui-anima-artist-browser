@@ -11,6 +11,11 @@ function ensureHost() {
 function resolveAnchor(anchor) {
     if (!(anchor instanceof Element)) return null;
     if (anchor.matches?.(".anima-card-img")) return anchor;
+    if (anchor.matches?.("#anima-swipe-container")) return anchor;
+    if (anchor.matches?.(".swipe-image")) {
+        const swipeContainer = anchor.closest?.("#anima-swipe")?.querySelector?.("#anima-swipe-container");
+        if (swipeContainer instanceof Element) return swipeContainer;
+    }
 
     const media = anchor.closest?.(".anima-card")
         ?.querySelector?.(".anima-card-img");
