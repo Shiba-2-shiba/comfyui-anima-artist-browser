@@ -225,9 +225,9 @@ Use the following status markers:
 | Phase | Status | Notes |
 | --- | --- | --- |
 | Phase 0. Freeze Baseline | done | Baseline behavior and manual regression checklist are documented. |
-| Phase 1. Extract Queue Behavior | in_progress | Queue progression and queue prompt hook are being extracted from `js/index.js`. |
-| Phase 2. Extract Node UI Wiring | pending | Depends on queue extraction. |
-| Phase 3. Extract Node Runtime State | pending | Depends on Phase 2. |
+| Phase 1. Extract Queue Behavior | done | Queue behavior was extracted and queue loop compatibility was manually verified. |
+| Phase 2. Extract Node UI Wiring | done | Widget builders, ordering, and tag display were extracted from `js/index.js`. |
+| Phase 3. Extract Node Runtime State | in_progress | Resize persistence has been extracted; timers and slot/tag runtime state remain. |
 | Phase 4. Normalize Browser Boundaries | pending | Can begin once node-side structure is stable. |
 | Phase 5. Verification And Cleanup | pending | Final pass. |
 
@@ -258,26 +258,31 @@ Use the following status markers:
   - Acceptance: queue submission behavior still works with `Fixed`, `Next Artist`, and `Random Artist`
   - Notes: `app.queuePrompt` wrapping is now initialized through `js/queue_behavior.js`.
 - `B4` Verify queue loop compatibility
-  - Status: pending
+  - Status: done
   - Acceptance: queue loop behavior matches baseline
+  - Notes: Manually verified after the queue extraction changes.
 
 ### Task Group C. Node UI Extraction
 
 - `C1` Move combo/button widget builders into a dedicated module
-  - Status: pending
+  - Status: done
   - Acceptance: widget creation code is removed from `js/index.js`
+  - Notes: Widget creation was extracted into `js/node_ui.js`.
 - `C2` Move widget ordering and collapse rules into the same layer
-  - Status: pending
+  - Status: done
   - Acceptance: widget ordering remains unchanged after extraction
+  - Notes: Widget ordering and hidden artist widget handling now live in `js/node_ui.js`.
 - `C3` Move tag display widget rendering into a focused module
-  - Status: pending
+  - Status: done
   - Acceptance: slot display remains unchanged
+  - Notes: Tag display widget rendering was moved into `js/node_ui.js`.
 
 ### Task Group D. Runtime State Extraction
 
 - `D1` Move resize persistence into a dedicated runtime helper
-  - Status: pending
+  - Status: done
   - Acceptance: node resize behavior is preserved
+  - Notes: Resize persistence helpers were extracted into `js/node_runtime.js`.
 - `D2` Move timer scheduling helpers into the runtime layer
   - Status: pending
   - Acceptance: layout refresh timing remains unchanged
@@ -364,4 +369,4 @@ This checklist should be run after each phase that touches behavior.
 
 The next implementation step is:
 
-- `B4` Verify queue loop compatibility, then continue with `C1` by extracting node UI widget builders out of `js/index.js`.
+- `D2` Move timer scheduling helpers into the runtime layer, then clarify ownership of `_currentSlot` and `_currentTags`.
