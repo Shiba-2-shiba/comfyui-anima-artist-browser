@@ -36,10 +36,6 @@ function getWidgetByName(node, name) {
     return node?.widgets?.find((widget) => String(widget?.name || "") === name) ?? null;
 }
 
-export function getPromptWidget(node) {
-    return getWidgetByName(node, "text");
-}
-
 function getArtistWidget(node, slotIndex) {
     return getWidgetByName(node, `artist_${slotIndex + 1}`);
 }
@@ -95,6 +91,23 @@ function setArtistSlot(node, slotIndex, value) {
     setWidgetValue(node, widget, value);
     syncArtistState(node);
     return true;
+}
+
+export function replaceArtistSlots(node, tags = [], currentSlot = 0) {
+    const next = buildSlotState({
+        tags,
+        currentSlot,
+        maxSlots: MAX_ARTIST_SLOTS,
+    });
+
+    for (let i = 0; i < next.maxSlots; i += 1) {
+        setArtistSlot(node, i, next.tags[i] ? `@${next.tags[i].replace(/_/g, " ")}` : "");
+    }
+
+    applyNodeSlotState(node, next);
+    node?.setDirtyCanvas?.(true, true);
+    app.graph?.setDirtyCanvas?.(true, true);
+    return next;
 }
 
 export function cycleArtistSlot(node) {

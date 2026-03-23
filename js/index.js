@@ -1,14 +1,14 @@
 import { app } from "../../scripts/app.js";
 import { injectCSS } from "./styles.js";
 import { Data } from "./data.js";
-import { AC } from "./autocomplete.js";
 import { AutoCycle } from "./autocycle.js";
 import { MAX_ARTIST_SLOTS, clampSlotIndex } from "./slot_state.js";
-import { clearArtistSlots, cycleArtistSlot, getPromptWidget, syncArtistState } from "./utils.js";
+import { applyStyle, clearArtistSlots, cycleArtistSlot, getNodeSlotState, replaceArtistSlots, syncArtistState } from "./utils.js";
 
 const ANIMA_SIZE_KEY = "_anima_saved_size";
+const ANIMA_RANDOM_COUNT_KEY = "_anima_random_count";
+const ANIMA_PIN_FAVORITES_KEY = "_anima_pin_favorites";
 const LAYOUT_REFRESH_DELAYS = [140, 360];
-const AUTOCOMPLETE_RETRY_DELAYS = [120, 320, 900];
 const INITIAL_GRAPH_SWEEP_DELAYS = [0, 320];
 
 function isAnimaNode(node) {
@@ -47,6 +47,36 @@ function writeStoredNodeSize(node, value) {
     if (!normalized) return null;
     const props = ensureNodeProperties(node);
     props[ANIMA_SIZE_KEY] = normalized;
+    return normalized;
+}
+
+function normalizeRandomCount(value) {
+    const count = Number(value);
+    if (!Number.isFinite(count)) return 1;
+    return Math.max(1, Math.min(MAX_ARTIST_SLOTS, Math.trunc(count)));
+}
+
+function readRandomCount(node) {
+    const props = ensureNodeProperties(node);
+    return normalizeRandomCount(props[ANIMA_RANDOM_COUNT_KEY]);
+}
+
+function writeRandomCount(node, value) {
+    const props = ensureNodeProperties(node);
+    const normalized = normalizeRandomCount(value);
+    props[ANIMA_RANDOM_COUNT_KEY] = normalized;
+    return normalized;
+}
+
+function readPinFavorites(node) {
+    const props = ensureNodeProperties(node);
+    return String(props[ANIMA_PIN_FAVORITES_KEY] || "off").toLowerCase() === "on";
+}
+
+function writePinFavorites(node, value) {
+    const props = ensureNodeProperties(node);
+    const normalized = String(value || "").toLowerCase() === "on" ? "on" : "off";
+    props[ANIMA_PIN_FAVORITES_KEY] = normalized;
     return normalized;
 }
 
@@ -101,8 +131,6 @@ function ensureNodeRuntime(node) {
     if (!node._animaRuntime || typeof node._animaRuntime !== "object") {
         node._animaRuntime = {
             timers: Object.create(null),
-            autocompleteReady: false,
-            autocompleteAttempts: 0,
         };
     }
     return node._animaRuntime;
@@ -199,34 +227,6 @@ function ensureTagDisplayWidget(node) {
     return true;
 }
 
-function attachPromptAutocomplete(node) {
-    const textarea = getPromptWidget(node)?.inputEl;
-    if (textarea?.tagName !== "TEXTAREA") return false;
-    AC.attach(textarea);
-    return true;
-}
-
-function ensurePromptAutocomplete(node) {
-    if (!node || !isAnimaNode(node)) return;
-    const runtime = ensureNodeRuntime(node);
-    if (!runtime || runtime.autocompleteReady) return;
-
-    if (attachPromptAutocomplete(node)) {
-        runtime.autocompleteReady = true;
-        clearNodeTimer(node, "autocomplete");
-        return;
-    }
-
-    const attempt = runtime.autocompleteAttempts || 0;
-    if (attempt >= AUTOCOMPLETE_RETRY_DELAYS.length) return;
-
-    runtime.autocompleteAttempts = attempt + 1;
-    scheduleNodeTimer(node, "autocomplete", AUTOCOMPLETE_RETRY_DELAYS[attempt], () => {
-        if (!isNodeAlive(node)) return;
-        ensurePromptAutocomplete(node);
-    });
-}
-
 async function openStyleBrowser(node) {
     try {
         const mod = await import("./browser.js");
@@ -251,6 +251,123 @@ function ensureButtonWidget(node, name, callback) {
     if (typeof node.addWidget !== "function") return false;
     widget = node.addWidget("button", name, null, callback);
     return !!widget;
+}
+
+function ensureRandomCountWidget(node) {
+    const widgets = ensureWidgetArray(node);
+    let widget = widgets.find((item) => String(item?.name || "") === "Random Count" && String(item?.type || "") === "combo");
+    const values = ["1", "2", "3"];
+
+    const onChange = (value) => {
+        const normalized = writeRandomCount(node, value);
+        if (widget) widget.value = String(normalized);
+        refreshNodeCanvas(node);
+    };
+
+    if (widget) {
+        widget.options = { ...(widget.options || {}), values };
+        widget.callback = onChange;
+        widget.value = String(readRandomCount(node));
+        return false;
+    }
+
+    if (typeof node.addWidget !== "function") return false;
+    widget = node.addWidget("combo", "Random Count", String(readRandomCount(node)), onChange, { values });
+    return !!widget;
+}
+
+function ensurePinFavoritesWidget(node) {
+    const widgets = ensureWidgetArray(node);
+    let widget = widgets.find((item) => String(item?.name || "") === "Pin Favorites" && String(item?.type || "") === "combo");
+    const values = ["Off", "On"];
+
+    const onChange = (value) => {
+        const normalized = writePinFavorites(node, value);
+        if (widget) widget.value = normalized === "on" ? "On" : "Off";
+        refreshNodeCanvas(node);
+    };
+
+    if (widget) {
+        widget.options = { ...(widget.options || {}), values };
+        widget.callback = onChange;
+        widget.value = readPinFavorites(node) ? "On" : "Off";
+        return false;
+    }
+
+    if (typeof node.addWidget !== "function") return false;
+    widget = node.addWidget("combo", "Pin Favorites", readPinFavorites(node) ? "On" : "Off", onChange, { values });
+    return !!widget;
+}
+
+async function loadFavoriteTagSet() {
+    try {
+        const response = await fetch("/anima/favorites");
+        if (!response.ok) return new Set();
+        const payload = await response.json().catch(() => ({}));
+        const items = Array.isArray(payload?.items) ? payload.items : [];
+        return new Set(
+            items
+                .filter((item) => String(item?.kind || "").toLowerCase() === "style")
+                .map((item) => String(item?.tag || "").trim().replace(/\s+/g, "_").toLowerCase())
+                .filter(Boolean)
+        );
+    } catch {
+        return new Set();
+    }
+}
+
+async function applyRandomArtists(node) {
+    const count = readRandomCount(node);
+    const artists = await Data.all();
+    if (!Array.isArray(artists) || !artists.length) return;
+
+    const unique = [];
+    const seen = new Set();
+    for (const artist of artists) {
+        const tag = String(artist?.tag || "").trim();
+        if (!tag || seen.has(tag)) continue;
+        seen.add(tag);
+        unique.push(artist);
+    }
+    if (!unique.length) return;
+
+    for (let i = unique.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [unique[i], unique[j]] = [unique[j], unique[i]];
+    }
+
+    const pinFavorites = readPinFavorites(node);
+    const currentState = getNodeSlotState(node);
+    const favoriteTags = pinFavorites ? await loadFavoriteTagSet() : new Set();
+    const pinnedSlots = [];
+    const pinnedTags = new Set();
+
+    if (pinFavorites) {
+        currentState.tags.forEach((tag, slotIndex) => {
+            if (!tag || !favoriteTags.has(tag) || pinnedSlots.length >= count) return;
+            pinnedSlots.push({ slotIndex, tag });
+            pinnedTags.add(tag);
+        });
+    }
+
+    const availableRandom = unique.filter((artist) => !pinnedTags.has(String(artist?.tag || "").trim().toLowerCase()));
+    const nextTags = Array.from({ length: MAX_ARTIST_SLOTS }, () => "");
+
+    pinnedSlots.forEach(({ slotIndex, tag }) => {
+        nextTags[slotIndex] = tag;
+    });
+
+    let filled = pinnedSlots.length;
+    let randomIndex = 0;
+    for (let slotIndex = 0; slotIndex < MAX_ARTIST_SLOTS && filled < count; slotIndex += 1) {
+        if (nextTags[slotIndex]) continue;
+        const artist = availableRandom[randomIndex++];
+        if (!artist) break;
+        nextTags[slotIndex] = String(artist.tag || "").trim().replace(/\s+/g, "_").toLowerCase();
+        filled += 1;
+    }
+
+    replaceArtistSlots(node, nextTags, 0);
 }
 
 function moveWidgetsToBottom(node, names = []) {
@@ -279,10 +396,11 @@ function patchNode(node, force = false) {
     syncArtistState(node);
 
     const addedRandom = ensureButtonWidget(node, "Random Style", () => {
-        Data.random().then((artist) => {
-            if (artist) AutoCycle.inject(node, artist);
-        }).catch(() => { });
+        applyRandomArtists(node).catch(() => { });
     });
+
+    const addedRandomCount = ensureRandomCountWidget(node);
+    const addedPinFavorites = ensurePinFavoritesWidget(node);
 
     const addedBrowser = ensureButtonWidget(node, "Artist Browser", () => {
         openStyleBrowser(node);
@@ -297,11 +415,11 @@ function patchNode(node, force = false) {
     });
 
     const addedTag = ensureTagDisplayWidget(node);
-    moveWidgetsToBottom(node, ["_tag_display", "Clear Styles", "Next Slot", "Artist Browser", "Random Style"]);
+    moveWidgetsToBottom(node, ["_tag_display", "Clear Styles", "Next Slot", "Artist Browser", "Pin Favorites", "Random Count", "Random Style"]);
 
     growNodeIfNeeded(node);
 
-    if (addedRandom || addedBrowser || addedNextSlot || addedClear || addedTag) {
+    if (addedRandom || addedRandomCount || addedPinFavorites || addedBrowser || addedNextSlot || addedClear || addedTag) {
         LAYOUT_REFRESH_DELAYS.forEach((delay, index) => {
             scheduleNodeTimer(node, `layout_${index}`, delay, () => {
                 if (!isNodeAlive(node)) return;
@@ -313,7 +431,6 @@ function patchNode(node, force = false) {
 
 function ensureNodeUi(node, force = false) {
     patchNode(node, force);
-    ensurePromptAutocomplete(node);
 }
 
 function patchExistingNodes() {

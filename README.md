@@ -1,7 +1,7 @@
 # Anima Artist Browser (Anima-2b)
 ![Anima Artist Browser](assets/banner.jpg)
 
-ComfyUI 上でアーティストタグを探しながら、最大 3 パターンのプロンプトを同時に作れるカスタムノードです。
+ComfyUI 上でアーティストタグを探しながら、最大 3 つの artist タグを 1 本の文字列として出力できるカスタムノードです。
 
 > このノードはコミュニティ製の独立ツールです。  
 > フォークやミラーではなく、別実装の ComfyUI ノードとして整理しています。  
@@ -11,10 +11,10 @@ ComfyUI 上でアーティストタグを探しながら、最大 3 パターン
 
 ## 概要
 
-`Anima Artist Browser` は、ベースプロンプト 1 つに対して、最大 3 人分のアーティストタグを組み合わせた `STRING` 出力を作るノードです。
+`Anima Artist Browser` は、最大 3 人分のアーティストタグを選び、`@artist,@artist,@artist` 形式の `STRING` を 1 本だけ出力するノードです。
 
 このノード自体は **CLIP エンコードを行いません**。  
-出力された文字列を `Concatenate` や `CLIP Text Encode` などの既存ノードへ接続して使います。
+出力された文字列を必要な後段ノードへ接続して使います。
 
 ---
 
@@ -41,8 +41,6 @@ Anima Artist Browser
 
 ### 入力
 
-* `text`
-  共通のベースプロンプトです。
 * `artist_1`
   1 枠目のアーティストタグです。
 * `artist_2`
@@ -52,36 +50,30 @@ Anima Artist Browser
 
 ### 出力
 
-* `prompt_1`
-* `prompt_2`
-* `prompt_3`
+* `artist_string`
 
 各出力は次の形式で生成されます。
 
 ```text
-@artist, base prompt
+@artist,@artist,@artist
 ```
 
-対応する `artist_n` が空の場合、その出力は空文字になります。
+空のスロットは無視され、選択済みの artist だけが左から順に連結されます。
 
 ---
 
 ## 基本的な使い方
 
-1. `text` にベースプロンプトを書きます
-2. ブラウザやランダム選択で `artist_1..3` を埋めます
-3. 必要な `prompt_1..3` を後段ノードへ接続します
+1. ブラウザやランダム選択で `artist_1..3` を埋めます
+2. 必要に応じて 1 つから 3 つまで artist を選びます
+3. 出力された `artist_string` を後段ノードへ接続します
 
 例:
 
 ```text
 Anima Artist Browser
-   ├─ prompt_1 -> CLIP Text Encode
-   ├─ prompt_2 -> CLIP Text Encode
-   └─ prompt_3 -> CLIP Text Encode
+   └─ artist_string -> downstream string input
 ```
-
-文字列をさらに合成したい場合は、途中に `Concatenate` などの文字列ノードを挟んでください。
 
 ---
 
@@ -94,7 +86,10 @@ Anima Artist Browser
 
 ### Random Style
 
-ランダムなアーティストを選んでスロットに入れます。
+`Random Count` で 1 / 2 / 3 を選び、その数だけランダムなアーティストをまとめて選択します。  
+未使用スロットは空に戻ります。
+
+`Pin Favorites` を `On` にすると、現在スロットに入っていて favorites 登録済みの artist は固定したまま、残りの枠だけをランダムで補います。
 
 ### Next Slot
 
@@ -117,13 +112,17 @@ Anima Artist Browser
 
 サムネイル付きでアーティストを一覧表示し、視覚的に選択できます。
 
-### `@` 補完
-
-テキスト入力欄で `@` を入力すると、候補のオートコンプリートを表示します。
-
 ### 3 スロット同時管理
 
-1 ノードで最大 3 人分のアーティストを保持し、3 本のプロンプトを同時に出力できます。
+1 ノードで最大 3 人分のアーティストを保持し、1 本の artist 文字列として出力できます。
+
+### ランダム件数指定
+
+ランダム選択時に、何人ぶんのアーティストを一括で入れるかを `1 / 2 / 3` から選べます。
+
+### お気に入り固定ランダム
+
+favorites に登録済みで、かつ現在スロットに入っている artist を固定し、残りだけをランダム追加できます。
 
 ### Auto Cycle
 
@@ -139,7 +138,7 @@ Anima Artist Browser
 
 * このノードの出力は `STRING` です
 * `KSampler` に直接つなぐことはできません
-* 画像生成に使うには別途 `CLIP Text Encode` などが必要です
+* 出力は artist タグ文字列のみで、base prompt は含みません
 * 空スロットは空文字を返します
 
 ---

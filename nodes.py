@@ -1,37 +1,31 @@
-DEFAULT_PROMPT = "1girl, masterpiece, best quality"
 MAX_ARTIST_SLOTS = 3
 
 
-def text_input(multiline=True, default=DEFAULT_PROMPT):
+def artist_input():
     return ("STRING", {
-        "multiline": multiline,
+        "multiline": False,
         "dynamicPrompts": True,
-        "default": default,
+        "default": "",
     })
 
 
 class AnimaArtistBrowser:
-    RETURN_TYPES = ("STRING", "STRING", "STRING")
-    RETURN_NAMES = ("prompt_1", "prompt_2", "prompt_3")
-    OUTPUT_TOOLTIPS = (
-        "Prompt for artist slot 1.",
-        "Prompt for artist slot 2.",
-        "Prompt for artist slot 3.",
-    )
-    FUNCTION = "build_prompts"
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("artist_string",)
+    OUTPUT_TOOLTIPS = ("Combined artist tags from all selected slots.",)
+    FUNCTION = "build_artist_string"
 
     CATEGORY = "Anima"
-    DESCRIPTION = "Builds up to three prompt strings by combining the base prompt with up to three selected artist tags."
-    SEARCH_ALIASES = ["artist prompt", "style prompt", "anime prompt", "prompt text", "multi prompt"]
+    DESCRIPTION = "Builds a single artist tag string by combining up to three selected artist tags."
+    SEARCH_ALIASES = ["artist browser", "artist tags", "anime artist", "artist string", "multi artist"]
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "text": text_input(),
-                "artist_1": text_input(multiline=False, default=""),
-                "artist_2": text_input(multiline=False, default=""),
-                "artist_3": text_input(multiline=False, default=""),
+                "artist_1": artist_input(),
+                "artist_2": artist_input(),
+                "artist_3": artist_input(),
             },
         }
 
@@ -41,20 +35,10 @@ class AnimaArtistBrowser:
         display = " ".join(display.split())
         return f"@{display}" if display else ""
 
-    @classmethod
-    def _compose_prompt(cls, base_text, artist_value):
-        artist = cls._normalize_artist(artist_value)
-        prompt = str(base_text or "").strip()
-        if not artist:
-            return ""
-        if not prompt:
-            return artist
-        return f"{artist}, {prompt}"
-
-    def build_prompts(self, text, artist_1, artist_2, artist_3):
-        artists = [artist_1, artist_2, artist_3][:MAX_ARTIST_SLOTS]
-        prompts = tuple(self._compose_prompt(text, artist) for artist in artists)
-        return prompts
+    def build_artist_string(self, artist_1, artist_2, artist_3):
+        artists = [self._normalize_artist(artist) for artist in [artist_1, artist_2, artist_3][:MAX_ARTIST_SLOTS]]
+        combined = ",".join(artist for artist in artists if artist)
+        return (combined,)
 
 
 NODE_CLASS_MAPPINGS = {
