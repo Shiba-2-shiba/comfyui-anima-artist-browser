@@ -32,7 +32,7 @@ export function getBrowserTemplate(siteBase) {
                     <button class="hdr-close" title="Close" style="margin-left:8px">&#10005;</button>
                 </div>
                 <div class="cycle-bar">
-                    <span class="cycle-label">Auto Cycle</span>
+                    <span class="cycle-label">Queue Mode</span>
                     <button class="anima-play-btn" id="anima-cycle-btn">
                         <span class="btn-icon">&#9654;</span>
                         <span class="btn-lbl">Play</span>
@@ -44,7 +44,7 @@ export function getBrowserTemplate(siteBase) {
                         <input type="text" placeholder="Search artists..." autocomplete="off" spellcheck="false"/>
                     </div>
                     <div class="cycle-gap"></div>
-                    <span class="cycle-hint">Play queues one random artist change at a time and advances when the queue finishes</span>
+                    <span class="cycle-hint">Play uses the node's After Queue and Auto Queue settings for the active slot</span>
                 </div>
                 <div class="slot-bar" id="anima-slot-bar">
                     <div class="slot-bar-copy">

@@ -8,6 +8,8 @@ import { applyStyle, clearArtistSlots, cycleArtistSlot, getNodeSlotState, replac
 const ANIMA_SIZE_KEY = "_anima_saved_size";
 const ANIMA_RANDOM_COUNT_KEY = "_anima_random_count";
 const ANIMA_PIN_FAVORITES_KEY = "_anima_pin_favorites";
+const ANIMA_QUEUE_MODE_KEY = "_anima_queue_mode";
+const ANIMA_AUTO_QUEUE_KEY = "_anima_auto_queue";
 const LAYOUT_REFRESH_DELAYS = [140, 360];
 const INITIAL_GRAPH_SWEEP_DELAYS = [0, 320];
 
@@ -77,6 +79,37 @@ function writePinFavorites(node, value) {
     const props = ensureNodeProperties(node);
     const normalized = String(value || "").toLowerCase() === "on" ? "on" : "off";
     props[ANIMA_PIN_FAVORITES_KEY] = normalized;
+    return normalized;
+}
+
+function normalizeQueueMode(value) {
+    const normalized = String(value || "").trim().toLowerCase().replace(/\s+/g, "_");
+    if (normalized === "next" || normalized === "next_artist") return "next_artist";
+    if (normalized === "random" || normalized === "random_artist") return "random_artist";
+    return "off";
+}
+
+function readQueueMode(node) {
+    const props = ensureNodeProperties(node);
+    return normalizeQueueMode(props[ANIMA_QUEUE_MODE_KEY]);
+}
+
+function writeQueueMode(node, value) {
+    const props = ensureNodeProperties(node);
+    const normalized = normalizeQueueMode(value);
+    props[ANIMA_QUEUE_MODE_KEY] = normalized;
+    return normalized;
+}
+
+function readAutoQueue(node) {
+    const props = ensureNodeProperties(node);
+    return String(props[ANIMA_AUTO_QUEUE_KEY] || "off").toLowerCase() === "on";
+}
+
+function writeAutoQueue(node, value) {
+    const props = ensureNodeProperties(node);
+    const normalized = String(value || "").toLowerCase() === "on" ? "on" : "off";
+    props[ANIMA_AUTO_QUEUE_KEY] = normalized;
     return normalized;
 }
 
@@ -258,10 +291,18 @@ async function openStyleBrowser(node) {
     }
 }
 
-function ensureButtonWidget(node, name, callback) {
+function queuePromptIfEnabled(node) {
+    if (!readAutoQueue(node)) return false;
+    app.queuePrompt?.(0, 1);
+    return true;
+}
+
+function ensureButtonWidget(node, name, callback, aliases = []) {
     const widgets = ensureWidgetArray(node);
-    let widget = widgets.find((item) => String(item?.name || "") === name && String(item?.type || "") === "button");
+    const allowedNames = [name, ...aliases];
+    let widget = widgets.find((item) => allowedNames.includes(String(item?.name || "")) && String(item?.type || "") === "button");
     if (widget) {
+        widget.name = name;
         widget.callback = callback;
         return false;
     }
@@ -313,6 +354,59 @@ function ensurePinFavoritesWidget(node) {
 
     if (typeof node.addWidget !== "function") return false;
     widget = node.addWidget("combo", "Pin Favorites", readPinFavorites(node) ? "On" : "Off", onChange, { values });
+    return !!widget;
+}
+
+function ensureQueueModeWidget(node) {
+    const widgets = ensureWidgetArray(node);
+    let widget = widgets.find((item) => String(item?.name || "") === "After Queue" && String(item?.type || "") === "combo");
+    const values = ["Off", "Next Artist", "Random Artist"];
+
+    const toLabel = (value) => {
+        const normalized = normalizeQueueMode(value);
+        if (normalized === "next_artist") return "Next Artist";
+        if (normalized === "random_artist") return "Random Artist";
+        return "Off";
+    };
+
+    const onChange = (value) => {
+        const normalized = writeQueueMode(node, value);
+        if (widget) widget.value = toLabel(normalized);
+        refreshNodeCanvas(node);
+    };
+
+    if (widget) {
+        widget.options = { ...(widget.options || {}), values };
+        widget.callback = onChange;
+        widget.value = toLabel(readQueueMode(node));
+        return false;
+    }
+
+    if (typeof node.addWidget !== "function") return false;
+    widget = node.addWidget("combo", "After Queue", toLabel(readQueueMode(node)), onChange, { values });
+    return !!widget;
+}
+
+function ensureAutoQueueWidget(node) {
+    const widgets = ensureWidgetArray(node);
+    let widget = widgets.find((item) => String(item?.name || "") === "Auto Queue" && String(item?.type || "") === "combo");
+    const values = ["Off", "On"];
+
+    const onChange = (value) => {
+        const normalized = writeAutoQueue(node, value);
+        if (widget) widget.value = normalized === "on" ? "On" : "Off";
+        refreshNodeCanvas(node);
+    };
+
+    if (widget) {
+        widget.options = { ...(widget.options || {}), values };
+        widget.callback = onChange;
+        widget.value = readAutoQueue(node) ? "On" : "Off";
+        return false;
+    }
+
+    if (typeof node.addWidget !== "function") return false;
+    widget = node.addWidget("combo", "Auto Queue", readAutoQueue(node) ? "On" : "Off", onChange, { values });
     return !!widget;
 }
 
@@ -385,6 +479,7 @@ async function applyRandomArtists(node) {
     }
 
     replaceArtistSlots(node, nextTags, 0);
+    queuePromptIfEnabled(node);
 }
 
 function reorderWidgets(node, names = []) {
@@ -412,12 +507,14 @@ function patchNode(node, force = false) {
     ensureResizePersistence(node);
     syncArtistState(node);
 
-    const addedRandom = ensureButtonWidget(node, "Random Style", () => {
+    const addedRandom = ensureButtonWidget(node, "Random Artist", () => {
         applyRandomArtists(node).catch(() => { });
-    });
+    }, ["Random Style"]);
 
     const addedRandomCount = ensureRandomCountWidget(node);
+    const addedQueueMode = ensureQueueModeWidget(node);
     const addedPinFavorites = ensurePinFavoritesWidget(node);
+    const addedAutoQueue = ensureAutoQueueWidget(node);
 
     const addedBrowser = ensureButtonWidget(node, "Artist Browser", () => {
         openStyleBrowser(node);
@@ -427,20 +524,22 @@ function patchNode(node, force = false) {
         cycleArtistSlot(node);
     });
 
-    const addedClear = ensureButtonWidget(node, "Clear Styles", () => {
+    const addedClear = ensureButtonWidget(node, "Clear Artist", () => {
         clearArtistSlots(node);
-    });
+    }, ["Clear Styles"]);
 
     const addedTag = ensureTagDisplayWidget(node);
     const collapsedArtists = collapseArtistInputWidgets(node);
     reorderWidgets(node, [
         "Artist Browser",
-        "Random Style",
+        "Random Artist",
+        "After Queue",
         "Random Count",
         "Pin Favorites",
         "Next Slot",
-        "Clear Styles",
+        "Clear Artist",
         "_tag_display",
+        "Auto Queue",
         "artist_1",
         "artist_2",
         "artist_3",
@@ -448,7 +547,7 @@ function patchNode(node, force = false) {
 
     growNodeIfNeeded(node);
 
-    if (addedRandom || addedRandomCount || addedPinFavorites || addedBrowser || addedNextSlot || addedClear || addedTag || collapsedArtists) {
+    if (addedRandom || addedRandomCount || addedQueueMode || addedPinFavorites || addedAutoQueue || addedBrowser || addedNextSlot || addedClear || addedTag || collapsedArtists) {
         LAYOUT_REFRESH_DELAYS.forEach((delay, index) => {
             scheduleNodeTimer(node, `layout_${index}`, delay, () => {
                 if (!isNodeAlive(node)) return;
