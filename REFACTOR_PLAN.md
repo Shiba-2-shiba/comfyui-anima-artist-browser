@@ -227,8 +227,8 @@ Use the following status markers:
 | Phase 0. Freeze Baseline | done | Baseline behavior and manual regression checklist are documented. |
 | Phase 1. Extract Queue Behavior | done | Queue behavior was extracted and queue loop compatibility was manually verified. |
 | Phase 2. Extract Node UI Wiring | done | Widget builders, ordering, and tag display were extracted from `js/index.js`. |
-| Phase 3. Extract Node Runtime State | in_progress | Resize persistence has been extracted; timers and slot/tag runtime state remain. |
-| Phase 4. Normalize Browser Boundaries | pending | Can begin once node-side structure is stable. |
+| Phase 3. Extract Node Runtime State | done | Resize persistence, timer helpers, and slot/tag runtime state are now managed through `js/node_runtime.js`. |
+| Phase 4. Normalize Browser Boundaries | done | Browser bootstrap was extracted and extension points are now documented. |
 | Phase 5. Verification And Cleanup | pending | Final pass. |
 
 ## Task Breakdown
@@ -284,23 +284,28 @@ Use the following status markers:
   - Acceptance: node resize behavior is preserved
   - Notes: Resize persistence helpers were extracted into `js/node_runtime.js`.
 - `D2` Move timer scheduling helpers into the runtime layer
-  - Status: pending
+  - Status: done
   - Acceptance: layout refresh timing remains unchanged
+  - Notes: Timer lifecycle helpers were extracted into `js/node_runtime.js`.
 - `D3` Clarify ownership of `_currentSlot` and `_currentTags`
-  - Status: pending
+  - Status: done
   - Acceptance: state sync flow is documented and localized
+  - Notes: Writes to `_currentSlot` and `_currentTags` are now centralized through runtime helpers in `js/node_runtime.js`.
 
 ### Task Group E. Browser Boundary Cleanup
 
 - `E1` Review singleton assumptions in `js/browser.js`
-  - Status: pending
+  - Status: done
   - Acceptance: initialization flow is documented
+  - Notes: Browser bootstrap, DOM binding, and AutoCycle bridge points were identified as the main singleton responsibilities.
 - `E2` Reduce cross-module coupling in browser bootstrap
-  - Status: pending
+  - Status: done
   - Acceptance: browser initialization is easier to follow and extend
+  - Notes: Browser bootstrap was extracted into `js/browser_bootstrap.js`, and store DOM binding now lives in `js/browser_store.js`.
 - `E3` Document intended extension points for future browser features
-  - Status: pending
+  - Status: done
   - Acceptance: new browser features can be added without reworking multiple layers
+  - Notes: Responsibilities and extension points are documented in `ARCHITECTURE.md`.
 
 ### Task Group F. Final Cleanup
 
@@ -369,4 +374,4 @@ This checklist should be run after each phase that touches behavior.
 
 The next implementation step is:
 
-- `D2` Move timer scheduling helpers into the runtime layer, then clarify ownership of `_currentSlot` and `_currentTags`.
+- `F1` Remove any dead code introduced by extraction, then finish the documentation cleanup pass.
