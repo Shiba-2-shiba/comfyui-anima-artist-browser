@@ -1,5 +1,5 @@
 # Anima Artist Browser (Anima-2b)
-![Anima Artist Browser](assets/banner.jpg)
+
 
 ComfyUI 上でアーティストタグを探しながら、最大 3 パターンのプロンプトを同時に作れるカスタムノードです。
 
