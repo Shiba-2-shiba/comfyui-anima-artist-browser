@@ -1,4 +1,5 @@
 import { buildSlotState } from "./slot_state.js";
+import { logWarn } from "./logger.js";
 
 export const ANIMA_PIN_FAVORITES_KEY = "_anima_pin_favorites";
 export const ANIMA_QUEUE_MODE_KEY = "_anima_queue_mode";
@@ -22,6 +23,12 @@ function getWidgetValue(node, name) {
 
 function normalizeTag(value) {
     return String(value || "").trim().replace(/\s+/g, "_").toLowerCase();
+}
+
+export function findArtistByTag(artists = [], tag = "") {
+    const normalized = normalizeTag(tag);
+    if (!normalized) return null;
+    return artists.find((artist) => normalizeTag(artist?.tag || "") === normalized) || null;
 }
 
 function uniqueArtists(artists = []) {
@@ -134,7 +141,8 @@ export async function loadFavoriteTagSet(fetchImpl = fetch) {
                 .map((item) => normalizeTag(item?.tag || ""))
                 .filter(Boolean)
         );
-    } catch {
+    } catch (error) {
+        logWarn("Failed to load favorite tag set", error);
         return new Set();
     }
 }
@@ -179,6 +187,35 @@ export function buildRandomizedSlotState({
         currentSlot: current.currentSlot,
         maxSlots: current.maxSlots,
     });
+}
+
+export function buildQueuedSlotState({
+    state,
+    artists,
+    mode,
+    pinFavorites = false,
+    favoriteTags = new Set(),
+    randomFn = Math.random,
+}) {
+    const normalizedMode = normalizeQueueMode(mode);
+    if (normalizedMode === "next_artist") {
+        return buildNextArtistSlotState({
+            state,
+            artists,
+            pinFavorites,
+            favoriteTags,
+        });
+    }
+    if (normalizedMode === "random_artist") {
+        return buildRandomizedSlotState({
+            state,
+            artists,
+            pinFavorites,
+            favoriteTags,
+            randomFn,
+        });
+    }
+    return buildSlotState(state);
 }
 
 export function buildNextArtistSlotState({
@@ -227,4 +264,33 @@ export function diffSlotStates(previousState, nextState) {
     }
 
     return changes;
+}
+
+export function resolveQueueAdvance({
+    state,
+    artists,
+    mode,
+    pinFavorites = false,
+    favoriteTags = new Set(),
+    randomFn = Math.random,
+}) {
+    const previousState = buildSlotState(state);
+    const nextState = buildQueuedSlotState({
+        state: previousState,
+        artists,
+        mode,
+        pinFavorites,
+        favoriteTags,
+        randomFn,
+    });
+    const changes = diffSlotStates(previousState, nextState);
+    const primaryTag = changes.find((entry) => entry.nextTag)?.nextTag || "";
+
+    return {
+        previousState,
+        nextState,
+        changes,
+        primaryArtist: findArtistByTag(artists, primaryTag) || (primaryTag ? { tag: primaryTag } : null),
+        changedArtists: changes.map((entry) => findArtistByTag(artists, entry.nextTag) || { tag: entry.nextTag }),
+    };
 }

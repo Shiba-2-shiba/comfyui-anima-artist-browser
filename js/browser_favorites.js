@@ -3,6 +3,7 @@ import {
     normalizeTag,
     sortByDateDesc,
 } from "./browser_helpers.js";
+import { logWarn } from "./logger.js";
 
 export function rebuildFavoriteMap(localFavorites = []) {
     const map = new Map();
@@ -19,7 +20,8 @@ export async function loadLocalFavorites(api) {
         const r = await api.fetchApi("/anima/favorites");
         const data = await r.json().catch(() => ({}));
         return Array.isArray(data.items) ? data.items : [];
-    } catch {
+    } catch (error) {
+        logWarn("Failed to load local favorites", error);
         return [];
     }
 }
@@ -49,6 +51,7 @@ export async function mutateLocalFavorites(api, headers, payload) {
             status: r.status,
         };
     } catch (err) {
+        logWarn("Failed to mutate local favorites", err);
         return { ok: false, error: err?.message || "Favorite update failed", status: 0 };
     }
 }

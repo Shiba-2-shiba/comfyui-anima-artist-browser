@@ -1,15 +1,14 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import { Data } from "./data.js";
+import { logError, logWarn } from "./logger.js";
 import { applyStyle, getNodeSlotState, replaceArtistSlots, setCurrentArtistSlot } from "./utils.js";
 import {
-    buildNextArtistSlotState,
-    buildRandomizedSlotState,
-    diffSlotStates,
     loadFavoriteTagSet,
     readAutoQueue,
     readPinFavorites,
     readQueueMode,
+    resolveQueueAdvance,
 } from "./queue_settings.js";
 
 function cycleBtn() {
@@ -32,7 +31,9 @@ export const AutoCycle = (() => {
         for (const listener of _listeners) {
             try {
                 listener({ event, running: _running, node: _node, count: _count, ...payload });
-            } catch { }
+            } catch (error) {
+                logWarn("AutoCycle listener raised an error", error);
+            }
         }
     }
 
@@ -48,12 +49,6 @@ export const AutoCycle = (() => {
         if (mode === "next_artist") return "Next Artist";
         if (mode === "random_artist") return "Random Artist";
         return "Fixed";
-    }
-
-    function _findArtistByTag(artists, tag) {
-        const normalized = String(tag || "").trim().toLowerCase();
-        if (!normalized) return null;
-        return artists.find((artist) => String(artist?.tag || "").trim().toLowerCase() === normalized) || null;
     }
 
     async function _advance() {
@@ -92,21 +87,18 @@ export const AutoCycle = (() => {
             const previousState = getNodeSlotState(_node);
             const pinFavorites = readPinFavorites(_node);
             const favoriteTags = pinFavorites ? await loadFavoriteTagSet(fetch) : new Set();
-            const nextState = mode === "next_artist"
-                ? buildNextArtistSlotState({
-                    state: previousState,
-                    artists,
-                    pinFavorites,
-                    favoriteTags,
-                })
-                : buildRandomizedSlotState({
-                    state: previousState,
-                    artists,
-                    pinFavorites,
-                    favoriteTags,
-                });
-
-            const changes = diffSlotStates(previousState, nextState);
+            const {
+                nextState,
+                changes,
+                primaryArtist,
+                changedArtists,
+            } = resolveQueueAdvance({
+                state: previousState,
+                artists,
+                mode,
+                pinFavorites,
+                favoriteTags,
+            });
             if (!changes.length) {
                 _setStatus("no eligible slots to advance", false);
                 stop();
@@ -116,23 +108,22 @@ export const AutoCycle = (() => {
             replaceArtistSlots(_node, nextState.tags, nextState.currentSlot);
             _count += 1;
 
-            const primaryTag = changes.find((entry) => entry.nextTag)?.nextTag || "";
-            const primaryArtist = _findArtistByTag(artists, primaryTag) || (primaryTag ? { tag: primaryTag } : null);
             const changeSummary = changes
                 .map((entry) => `S${entry.slotIndex + 1}`)
                 .join(", ");
 
             if (autoQueue) {
                 _setStatus(`queued #${_count} ${changeSummary}`, true);
-                _notify("applied", { artist: primaryArtist, artists: changes.map((entry) => _findArtistByTag(artists, entry.nextTag) || { tag: entry.nextTag }), changes, mode, autoQueue: true });
+                _notify("applied", { artist: primaryArtist, artists: changedArtists, changes, mode, autoQueue: true });
                 _queueWasActive = true;
                 app.queuePrompt(0, 1);
                 return;
             }
 
             _setStatus(`advanced #${_count} ${changeSummary} - queue manually`, true);
-            _notify("applied", { artist: primaryArtist, artists: changes.map((entry) => _findArtistByTag(artists, entry.nextTag) || { tag: entry.nextTag }), changes, mode, autoQueue: false });
-        } catch {
+            _notify("applied", { artist: primaryArtist, artists: changedArtists, changes, mode, autoQueue: false });
+        } catch (error) {
+            logError("AutoCycle advance failed", error);
             stop();
         }
     }

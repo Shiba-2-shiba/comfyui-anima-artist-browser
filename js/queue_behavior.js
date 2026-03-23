@@ -1,14 +1,14 @@
 import { app } from "../../scripts/app.js";
 import { Data } from "./data.js";
 import { AutoCycle } from "./autocycle.js";
+import { logWarn } from "./logger.js";
 import { getNodeSlotState, replaceArtistSlots } from "./utils.js";
 import {
-    buildNextArtistSlotState,
-    buildRandomizedSlotState,
     loadFavoriteTagSet,
     readAutoQueue,
     readPinFavorites,
     readQueueMode,
+    resolveQueueAdvance,
 } from "./queue_settings.js";
 
 function defaultRefreshNodeCanvas(node) {
@@ -16,7 +16,9 @@ function defaultRefreshNodeCanvas(node) {
     try {
         node.setDirtyCanvas?.(true, true);
         app.graph?.setDirtyCanvas?.(true, true);
-    } catch { }
+    } catch (error) {
+        logWarn("Failed to refresh node canvas after queue advance", error);
+    }
 }
 
 function defaultIsNodeAlive(node) {
@@ -25,16 +27,6 @@ function defaultIsNodeAlive(node) {
 
 function getQueueBehaviorConfig() {
     return app._animaQueueBehavior || {};
-}
-
-function slotStatesMatch(left, right) {
-    const leftTags = Array.isArray(left?.tags) ? left.tags : [];
-    const rightTags = Array.isArray(right?.tags) ? right.tags : [];
-    if (leftTags.length !== rightTags.length) return false;
-    for (let i = 0; i < leftTags.length; i += 1) {
-        if (leftTags[i] !== rightTags[i]) return false;
-    }
-    return true;
 }
 
 export async function advanceNodeAfterQueue(node, overrides = {}) {
@@ -53,21 +45,15 @@ export async function advanceNodeAfterQueue(node, overrides = {}) {
     const previousState = getNodeSlotState(node);
     const pinFavorites = readPinFavorites(node);
     const favoriteTags = pinFavorites ? await loadFavoriteTagSet(fetch) : new Set();
-    const nextState = mode === "next_artist"
-        ? buildNextArtistSlotState({
-            state: previousState,
-            artists,
-            pinFavorites,
-            favoriteTags,
-        })
-        : buildRandomizedSlotState({
-            state: previousState,
-            artists,
-            pinFavorites,
-            favoriteTags,
-        });
+    const { nextState, changes } = resolveQueueAdvance({
+        state: previousState,
+        artists,
+        mode,
+        pinFavorites,
+        favoriteTags,
+    });
 
-    if (slotStatesMatch(previousState, nextState)) return false;
+    if (!changes.length) return false;
 
     replaceArtistSlots(node, nextState.tags, nextState.currentSlot);
     refreshNodeCanvas(node);
@@ -88,7 +74,9 @@ async function advanceQueuedNodesAfterSubmission() {
     for (const node of nodes) {
         try {
             await advanceNodeAfterQueue(node);
-        } catch { }
+        } catch (error) {
+            logWarn("Failed to advance node after queue submission", error);
+        }
     }
 }
 

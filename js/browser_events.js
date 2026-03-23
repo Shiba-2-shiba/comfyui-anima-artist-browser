@@ -1,3 +1,5 @@
+import { logWarn } from "./logger.js";
+
 export function attachBrowserEvents({
     el,
     api,
@@ -36,11 +38,61 @@ export function attachBrowserEvents({
         return localHeaders();
     };
 
+    function reportActionFailure(context, error, userMessage = "") {
+        logWarn(context, error);
+        if (userMessage) {
+            alert(userMessage);
+        }
+    }
+
+    function restoreInlineButton(button, html) {
+        button.innerHTML = html;
+        button.style.pointerEvents = "auto";
+    }
+
     const closeBrowser = () => {
         close();
     };
 
     const dlBtn = el.querySelector("#anima-dl-images");
+
+    function resetDownloadButton(delay = 0) {
+        const applyReset = () => {
+            dlBtn.textContent = "Download Previews";
+            dlBtn.classList.remove("disabled");
+        };
+
+        if (delay > 0) {
+            setTimeout(applyReset, delay);
+            return;
+        }
+
+        applyReset();
+    }
+
+    async function pollDownloadStatus() {
+        try {
+            dlBtn.classList.add("disabled");
+            const statusResponse = await api.fetchApi("/anima/download_status");
+            const status = await statusResponse.json();
+            if (status.active) {
+                dlBtn.textContent = `Downloading ${status.done}/${status.total}...`;
+                setTimeout(() => {
+                    void pollDownloadStatus();
+                }, 1000);
+                return;
+            }
+
+            dlBtn.textContent = "Download Complete!";
+            dlBtn.classList.remove("disabled");
+            resetDownloadButton(3000);
+            await render();
+        } catch (error) {
+            resetDownloadButton();
+            reportActionFailure("Failed while polling preview download status", error, "Could not refresh preview download status.");
+        }
+    }
+
     dlBtn.addEventListener("click", async () => {
         if (dlBtn.classList.contains("disabled")) return;
         const ok = confirm(
@@ -58,26 +110,9 @@ export function attachBrowserEvents({
                 alert("Download already in progress or failed to start.");
                 return;
             }
-
-            const pollDownload = async () => {
-                dlBtn.classList.add("disabled");
-                const statusResponse = await api.fetchApi("/anima/download_status");
-                const status = await statusResponse.json();
-                if (status.active) {
-                    dlBtn.textContent = `Downloading ${status.done}/${status.total}...`;
-                    setTimeout(pollDownload, 1000);
-                    return;
-                }
-
-                dlBtn.textContent = "Download Complete!";
-                dlBtn.classList.remove("disabled");
-                setTimeout(() => { dlBtn.textContent = "Download Previews"; }, 3000);
-                render();
-            };
-
-            pollDownload();
+            void pollDownloadStatus();
         } catch (err) {
-            alert(err?.message || "Could not start preview download.");
+            reportActionFailure("Failed to start preview download", err, err?.message || "Could not start preview download.");
         }
     });
 
@@ -101,9 +136,10 @@ export function attachBrowserEvents({
                 dataReset();
             }
             await render();
-        } catch { }
-        btn.innerHTML = oldHtml;
-        btn.style.pointerEvents = "auto";
+        } catch (error) {
+            reportActionFailure("Failed to refresh browser view", error);
+        }
+        restoreInlineButton(btn, oldHtml);
     });
 
     let searchTo;
@@ -133,7 +169,7 @@ export function attachBrowserEvents({
             }
         } catch (err) {
             updateBtn.innerHTML = "Error!";
-            alert(err?.message || "Could not update styles.");
+            reportActionFailure("Failed to update styles", err, err?.message || "Could not update styles.");
         }
         setTimeout(() => {
             updateBtn.innerHTML = "Update Styles";

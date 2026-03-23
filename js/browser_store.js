@@ -1,10 +1,13 @@
+import { logWarn } from "./logger.js";
+
 const BROWSER_CATEGORY_KEY = "anima_browser_category";
 
 export function safeLocalGet(key, fallback = "") {
     try {
         const value = localStorage.getItem(key);
         return value == null ? fallback : value;
-    } catch {
+    } catch (error) {
+        logWarn(`Failed to read localStorage key: ${key}`, error);
         return fallback;
     }
 }
@@ -12,7 +15,9 @@ export function safeLocalGet(key, fallback = "") {
 export function safeLocalSet(key, value) {
     try {
         localStorage.setItem(key, String(value));
-    } catch { }
+    } catch (error) {
+        logWarn(`Failed to write localStorage key: ${key}`, error);
+    }
 }
 
 export function createBrowserStore() {
