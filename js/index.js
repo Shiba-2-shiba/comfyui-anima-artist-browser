@@ -227,6 +227,23 @@ function ensureTagDisplayWidget(node) {
     return true;
 }
 
+function collapseArtistInputWidgets(node) {
+    const widgets = ensureWidgetArray(node);
+    let changed = false;
+
+    for (const name of ["artist_1", "artist_2", "artist_3"]) {
+        const widget = widgets.find((item) => String(item?.name || "") === name);
+        if (!widget || widget._animaCollapsed) continue;
+        widget._animaCollapsed = true;
+        widget.hidden = true;
+        widget.computeSize = () => [0, 0];
+        widget.serialize = true;
+        changed = true;
+    }
+
+    return changed;
+}
+
 async function openStyleBrowser(node) {
     try {
         const mod = await import("./browser.js");
@@ -370,7 +387,7 @@ async function applyRandomArtists(node) {
     replaceArtistSlots(node, nextTags, 0);
 }
 
-function moveWidgetsToBottom(node, names = []) {
+function reorderWidgets(node, names = []) {
     const widgets = ensureWidgetArray(node);
     if (!widgets.length) return false;
 
@@ -415,11 +432,23 @@ function patchNode(node, force = false) {
     });
 
     const addedTag = ensureTagDisplayWidget(node);
-    moveWidgetsToBottom(node, ["_tag_display", "Clear Styles", "Next Slot", "Artist Browser", "Pin Favorites", "Random Count", "Random Style"]);
+    const collapsedArtists = collapseArtistInputWidgets(node);
+    reorderWidgets(node, [
+        "Artist Browser",
+        "Random Style",
+        "Random Count",
+        "Pin Favorites",
+        "Next Slot",
+        "Clear Styles",
+        "_tag_display",
+        "artist_1",
+        "artist_2",
+        "artist_3",
+    ]);
 
     growNodeIfNeeded(node);
 
-    if (addedRandom || addedRandomCount || addedPinFavorites || addedBrowser || addedNextSlot || addedClear || addedTag) {
+    if (addedRandom || addedRandomCount || addedPinFavorites || addedBrowser || addedNextSlot || addedClear || addedTag || collapsedArtists) {
         LAYOUT_REFRESH_DELAYS.forEach((delay, index) => {
             scheduleNodeTimer(node, `layout_${index}`, delay, () => {
                 if (!isNodeAlive(node)) return;
