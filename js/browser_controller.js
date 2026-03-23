@@ -1,3 +1,5 @@
+import { logWarn } from "./logger.js";
+
 export function createBrowserController({
     api,
     store,
@@ -20,7 +22,9 @@ export function createBrowserController({
             if (typeof payload.localToken === "string" && payload.localToken) {
                 store.localApiToken = payload.localToken;
             }
-        } catch { }
+        } catch (error) {
+            logWarn("Failed to fetch local API token", error);
+        }
         return store.localApiToken;
     }
 

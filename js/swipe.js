@@ -1,3 +1,5 @@
+import { logWarn } from "./logger.js";
+
 export const Swipe = (() => {
     const PRELOAD_WINDOW = 15;
     const PRELOAD_TRIGGER_OFFSET = 5;
@@ -94,7 +96,11 @@ export const Swipe = (() => {
     function _apply() {
         const item = _getItem(_index);
         if (!item) return;
-        try { _onApply?.(item); } catch (_) { }
+        try {
+            _onApply?.(item);
+        } catch (error) {
+            logWarn("Swipe apply handler failed", error);
+        }
     }
 
     function _navigate(delta) {
@@ -183,7 +189,9 @@ export const Swipe = (() => {
                 const title = _titleFor(cur);
                 if (!title) break;
                 e.preventDefault(); e.stopPropagation();
-                navigator.clipboard?.writeText?.(`@${title}`).catch(() => { });
+                navigator.clipboard?.writeText?.(`@${title}`).catch((error) => {
+                    logWarn("Failed to copy swipe tag to clipboard", error);
+                });
                 break;
             }
             case "Escape":

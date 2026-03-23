@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 from aiohttp import web
@@ -18,13 +19,17 @@ def register_core_routes(server, require_local_token=None, get_local_token=None)
 
     @server.instance.routes.get("/anima/artists")
     async def get_artists(request):
-        return web.json_response(load_artists())
+        artists = await asyncio.to_thread(load_artists)
+        return web.json_response(artists)
 
     @server.instance.routes.get("/anima/local_token")
     async def get_local_token_route(request):
         if get_local_token is None:
             return web.json_response({"error": "Local token support unavailable"}, status=503)
-        return web.json_response({"localToken": get_local_token()})
+        local_token = get_local_token(request)
+        if not local_token:
+            return web.json_response({"error": "Local token requests are restricted to loopback clients"}, status=403)
+        return web.json_response({"localToken": local_token})
 
     @server.instance.routes.post("/anima/update")
     async def update_artists(request):
@@ -32,7 +37,7 @@ def register_core_routes(server, require_local_token=None, get_local_token=None)
             denied = require_local_token(request)
             if denied is not None:
                 return denied
-        success = download_artists()
+        success = await asyncio.to_thread(download_artists)
         return web.json_response({"success": success})
 
     @server.instance.routes.post("/anima/download_images")
@@ -41,7 +46,7 @@ def register_core_routes(server, require_local_token=None, get_local_token=None)
             denied = require_local_token(request)
             if denied is not None:
                 return denied
-        success = start_artist_image_download()
+        success = await asyncio.to_thread(start_artist_image_download)
         return web.json_response({"success": success})
 
     @server.instance.routes.get("/anima/download_status")

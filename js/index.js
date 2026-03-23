@@ -1,6 +1,7 @@
 import { app } from "../../scripts/app.js";
 import { injectCSS } from "./styles.js";
 import { AutoCycle } from "./autocycle.js";
+import { logWarn } from "./logger.js";
 import { syncArtistState } from "./utils.js";
 import { ensureQueuePromptHook } from "./queue_behavior.js";
 import { ensureNodeWidgets } from "./node_ui.js";
@@ -26,7 +27,9 @@ function refreshNodeCanvas(node) {
     try {
         node.setDirtyCanvas?.(true, true);
         app.graph?.setDirtyCanvas?.(true, true);
-    } catch { }
+    } catch (error) {
+        logWarn("Failed to refresh node canvas", error);
+    }
 }
 
 function isNodeAlive(node) {
@@ -53,7 +56,9 @@ function growNodeIfNeeded(node) {
             node.setSize?.(next);
         }
         refreshNodeCanvas(node);
-    } catch { }
+    } catch (error) {
+        logWarn("Failed to resize Anima node", error);
+    }
 }
 
 function patchNode(node, force = false) {

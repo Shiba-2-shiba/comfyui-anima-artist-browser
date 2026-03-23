@@ -1,4 +1,5 @@
 import { CACHE_KEY, CACHE_TTL } from "./config.js";
+import { logWarn } from "./logger.js";
 
 export const Data = (() => {
     let _promise = null;
@@ -8,9 +9,13 @@ export const Data = (() => {
             const raw = localStorage.getItem(CACHE_KEY);
             if (raw) {
                 const { ts, list } = JSON.parse(raw);
-                if (Date.now() - ts < CACHE_TTL) return list;
+                if (Date.now() - ts < CACHE_TTL) {
+                    return { list, cacheable: true };
+                }
             }
-        } catch (_) { }
+        } catch (error) {
+            logWarn("Failed to read cached artist data", error);
+        }
 
         try {
             const r = await fetch("/anima/artists");
@@ -20,19 +25,48 @@ export const Data = (() => {
                     a._s = (a.tag + " " + (a.name || "")).toLowerCase();
                 });
                 _persist(list);
-                return list;
+                return { list, cacheable: true };
             }
-        } catch (_) { }
+            logWarn("Artist data request returned a non-OK response", { status: r.status });
+        } catch (error) {
+            logWarn("Failed to fetch artist data", error);
+        }
 
-        return [];
+        return { list: [], cacheable: false };
     }
 
     function _persist(list) {
-        try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), list })); } catch (_) { }
+        try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), list }));
+        } catch (error) {
+            logWarn("Failed to persist artist data cache", error);
+        }
     }
 
-    function all() { return _promise || (_promise = _load()); }
-    function reset() { _promise = null; localStorage.removeItem(CACHE_KEY); }
+    function all() {
+        if (_promise) return _promise;
+
+        _promise = _load().then((result) => {
+            if (!result?.cacheable) {
+                _promise = null;
+            }
+            return Array.isArray(result?.list) ? result.list : [];
+        }, (error) => {
+            _promise = null;
+            throw error;
+        });
+
+        return _promise;
+    }
+
+    function reset() {
+        _promise = null;
+        try {
+            localStorage.removeItem(CACHE_KEY);
+        } catch (error) {
+            logWarn("Failed to clear artist data cache", error);
+        }
+    }
 
     async function search(q) {
         const list = await all();
