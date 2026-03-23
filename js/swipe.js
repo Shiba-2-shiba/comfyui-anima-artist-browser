@@ -1,6 +1,8 @@
 export const Swipe = (() => {
     const PRELOAD_WINDOW = 15;
     const PRELOAD_TRIGGER_OFFSET = 5;
+    const WHEEL_NAV_THRESHOLD = 90;
+    const WHEEL_IDLE_RESET_MS = 220;
 
     let el = null;
     let container = null;
@@ -17,10 +19,13 @@ export const Swipe = (() => {
     let _getTitle = null;
 
     let _keyHandler = null;
+    let _wheelHandler = null;
     const _preloaded = new Set();
     let _preloadedAheadIndex = -1;
     let _preloadedBehindIndex = -1;
     let _previousBodyOverflow = "";
+    let _wheelDelta = 0;
+    let _lastWheelAt = 0;
 
     function _build() {
         if (document.getElementById("anima-swipe")) return;
@@ -40,7 +45,7 @@ export const Swipe = (() => {
                 <img class="swipe-image swipe-image--current" id="anima-swipe-current" alt="" loading="eager"/>
                 <img class="swipe-image swipe-image--next" id="anima-swipe-next" alt="" loading="eager"/>
             </div>
-            <div class="swipe-hint">&#8592;/&#8594; navigate &#183; Enter apply &#183; C copy &#183; Esc close</div>
+            <div class="swipe-hint">&#8592;/&#8594; or wheel navigate &#183; Enter apply &#183; C copy &#183; Esc close</div>
         `;
         document.body.appendChild(el);
 
@@ -57,6 +62,11 @@ export const Swipe = (() => {
         prevImg.addEventListener("click", (e) => { e.stopPropagation(); _navigate(-1); });
         nextImg.addEventListener("click", (e) => { e.stopPropagation(); _navigate(1); });
         curImg.addEventListener("click", (e) => { e.stopPropagation(); _apply(); });
+
+        if (!_wheelHandler) {
+            _wheelHandler = (e) => _onWheel(e);
+            el.addEventListener("wheel", _wheelHandler, { passive: false });
+        }
     }
 
     function _normalizeIndex(i, len) {
@@ -183,6 +193,28 @@ export const Swipe = (() => {
         }
     }
 
+    function _onWheel(e) {
+        if (!el || el.classList.contains("hidden") || !_list?.length) return;
+
+        const dominantDelta = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+        if (!Number.isFinite(dominantDelta) || dominantDelta === 0) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const now = Date.now();
+        if (now - _lastWheelAt > WHEEL_IDLE_RESET_MS) {
+            _wheelDelta = 0;
+        }
+        _lastWheelAt = now;
+        _wheelDelta += dominantDelta;
+
+        if (Math.abs(_wheelDelta) < WHEEL_NAV_THRESHOLD) return;
+
+        _navigate(_wheelDelta > 0 ? 1 : -1);
+        _wheelDelta = 0;
+    }
+
     function open({ list, startIndex = 0, onApply, getImageUrl, getTitle } = {}) {
         _build();
         if (!Array.isArray(list) || list.length === 0) return;
@@ -195,6 +227,8 @@ export const Swipe = (() => {
         _preloaded.clear();
         _preloadedAheadIndex = _index - 1;
         _preloadedBehindIndex = _index + 1;
+        _wheelDelta = 0;
+        _lastWheelAt = 0;
 
         _previousBodyOverflow = document.body.style.overflow;
         document.body.style.overflow = "hidden";
@@ -218,6 +252,8 @@ export const Swipe = (() => {
         _preloaded.clear();
         _preloadedAheadIndex = -1;
         _preloadedBehindIndex = -1;
+        _wheelDelta = 0;
+        _lastWheelAt = 0;
         document.body.style.overflow = _previousBodyOverflow;
 
         if (_keyHandler) {
