@@ -49,7 +49,6 @@ export const Swipe = (() => {
                 <span class="swipe-counter" id="anima-swipe-counter"></span>
                 <span class="swipe-title" id="anima-swipe-title"></span>
                 <div class="swipe-actions">
-                    <button class="swipe-favorite" id="anima-swipe-favorite" type="button" title="Right click the current image to toggle favorite">Favorite OFF</button>
                     <button class="swipe-close" id="anima-swipe-close" title="Close">&#10005;</button>
                 </div>
             </div>
@@ -60,7 +59,10 @@ export const Swipe = (() => {
                     <div class="swipe-image-favorite-badge" id="anima-swipe-favorite-badge" title="Favorited">&#10084;</div>
                 </div>
                 <img class="swipe-image swipe-image--next" id="anima-swipe-next" alt="" loading="eager"/>
-                <aside class="swipe-slot-panel" id="anima-swipe-slots"></aside>
+                <aside class="swipe-side-stack" id="anima-swipe-side-stack">
+                    <button class="swipe-favorite" id="anima-swipe-favorite" type="button" title="Right click the current image to toggle favorite">Favorite OFF</button>
+                    <div class="swipe-slot-panel" id="anima-swipe-slots"></div>
+                </aside>
             </div>
             <div class="swipe-hint">Left click apply &#183; Right click favorite &#183; &#8592;/&#8594; or wheel navigate &#183; Enter apply &#183; C copy &#183; Esc close</div>
         `;
