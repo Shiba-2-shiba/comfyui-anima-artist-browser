@@ -4,7 +4,13 @@ import { AutoCycle } from "./autocycle.js";
 import { syncArtistState } from "./utils.js";
 import { ensureQueuePromptHook } from "./queue_behavior.js";
 import { ensureNodeWidgets } from "./node_ui.js";
-import { ensureResizePersistence, normalizeSizePair, readStoredNodeSize } from "./node_runtime.js";
+import {
+    ensureNodeRuntime,
+    ensureResizePersistence,
+    normalizeSizePair,
+    readStoredNodeSize,
+    scheduleNodeTimer,
+} from "./node_runtime.js";
 
 const LAYOUT_REFRESH_DELAYS = [140, 360];
 const INITIAL_GRAPH_SWEEP_DELAYS = [0, 320];
@@ -21,34 +27,6 @@ function refreshNodeCanvas(node) {
         node.setDirtyCanvas?.(true, true);
         app.graph?.setDirtyCanvas?.(true, true);
     } catch { }
-}
-
-function ensureNodeRuntime(node) {
-    if (!node) return null;
-    if (!node._animaRuntime || typeof node._animaRuntime !== "object") {
-        node._animaRuntime = {
-            timers: Object.create(null),
-        };
-    }
-    return node._animaRuntime;
-}
-
-function clearNodeTimer(node, key) {
-    const runtime = ensureNodeRuntime(node);
-    const timer = runtime?.timers?.[key];
-    if (!timer) return;
-    clearTimeout(timer);
-    delete runtime.timers[key];
-}
-
-function scheduleNodeTimer(node, key, delay, callback) {
-    const runtime = ensureNodeRuntime(node);
-    if (!runtime) return;
-    clearNodeTimer(node, key);
-    runtime.timers[key] = setTimeout(() => {
-        delete runtime.timers[key];
-        callback();
-    }, delay);
 }
 
 function isNodeAlive(node) {

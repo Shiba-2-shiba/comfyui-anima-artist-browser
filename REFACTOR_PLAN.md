@@ -227,9 +227,9 @@ Use the following status markers:
 | Phase 0. Freeze Baseline | done | Baseline behavior and manual regression checklist are documented. |
 | Phase 1. Extract Queue Behavior | done | Queue behavior was extracted and queue loop compatibility was manually verified. |
 | Phase 2. Extract Node UI Wiring | done | Widget builders, ordering, and tag display were extracted from `js/index.js`. |
-| Phase 3. Extract Node Runtime State | in_progress | Resize persistence has been extracted; timers and slot/tag runtime state remain. |
-| Phase 4. Normalize Browser Boundaries | pending | Can begin once node-side structure is stable. |
-| Phase 5. Verification And Cleanup | pending | Final pass. |
+| Phase 3. Extract Node Runtime State | done | Resize persistence, timer helpers, and slot/tag runtime state are now managed through `js/node_runtime.js`. |
+| Phase 4. Normalize Browser Boundaries | done | Browser bootstrap was extracted and extension points are now documented. |
+| Phase 5. Verification And Cleanup | in_progress | Dead code cleanup and documentation updates are complete; final regression confirmation remains. |
 
 ## Task Breakdown
 
@@ -284,72 +284,46 @@ Use the following status markers:
   - Acceptance: node resize behavior is preserved
   - Notes: Resize persistence helpers were extracted into `js/node_runtime.js`.
 - `D2` Move timer scheduling helpers into the runtime layer
-  - Status: pending
+  - Status: done
   - Acceptance: layout refresh timing remains unchanged
+  - Notes: Timer lifecycle helpers were extracted into `js/node_runtime.js`.
 - `D3` Clarify ownership of `_currentSlot` and `_currentTags`
-  - Status: pending
+  - Status: done
   - Acceptance: state sync flow is documented and localized
+  - Notes: Writes to `_currentSlot` and `_currentTags` are now centralized through runtime helpers in `js/node_runtime.js`.
 
 ### Task Group E. Browser Boundary Cleanup
 
 - `E1` Review singleton assumptions in `js/browser.js`
-  - Status: pending
+  - Status: done
   - Acceptance: initialization flow is documented
+  - Notes: Browser bootstrap, DOM binding, and AutoCycle bridge points were identified as the main singleton responsibilities.
 - `E2` Reduce cross-module coupling in browser bootstrap
-  - Status: pending
+  - Status: done
   - Acceptance: browser initialization is easier to follow and extend
+  - Notes: Browser bootstrap was extracted into `js/browser_bootstrap.js`, and store DOM binding now lives in `js/browser_store.js`.
 - `E3` Document intended extension points for future browser features
-  - Status: pending
+  - Status: done
   - Acceptance: new browser features can be added without reworking multiple layers
+  - Notes: Responsibilities and extension points are documented in `ARCHITECTURE.md`.
 
 ### Task Group F. Final Cleanup
 
 - `F1` Remove any dead code introduced by extraction
-  - Status: pending
+  - Status: done
   - Acceptance: no obsolete helper remains
+  - Notes: Redundant browser exports and bootstrap-only coupling were trimmed after the extractions.
 - `F2` Update documentation to reflect the new structure
-  - Status: pending
+  - Status: done
   - Acceptance: file responsibilities are documented
+  - Notes: `ARCHITECTURE.md`, `README.md`, and this plan now reflect the extracted module structure.
 - `F3` Run final manual regression pass
   - Status: pending
   - Acceptance: all baseline behaviors are verified
 
 ## Manual Regression Checklist
 
-This checklist should be run after each phase that touches behavior.
-
-### Core Node
-
-- Create the node and confirm it renders correctly.
-- Confirm slot summary is visible.
-- Confirm selecting artists updates the correct slot.
-- Confirm clear resets all slots.
-
-### Browser
-
-- Open browser from node.
-- Apply artist normally.
-- Apply artist to specific slot.
-- Confirm favorites can be added and removed.
-- Confirm pinned favorites are respected.
-
-### Queue Behavior
-
-- `After Queue = Fixed`
-  - Queue should preserve current slots.
-- `After Queue = Next Artist`
-  - Queue should submit current slots and then advance for next run.
-- `After Queue = Random Artist`
-  - Queue should submit current slots and then randomize only the filled slot count.
-- Repeat each of the above with `Auto Queue = Off`.
-- Repeat each of the above with `Auto Queue = On`.
-
-### Queue Loop
-
-- Start queue loop.
-- Confirm play/stop UI updates.
-- Confirm loop behavior still advances as expected.
-- Confirm stopping exits cleanly.
+Use [MANUAL_REGRESSION_CHECKLIST.md](./MANUAL_REGRESSION_CHECKLIST.md) for the current step-by-step regression flow.
 
 ## Risks
 
@@ -369,4 +343,4 @@ This checklist should be run after each phase that touches behavior.
 
 The next implementation step is:
 
-- `D2` Move timer scheduling helpers into the runtime layer, then clarify ownership of `_currentSlot` and `_currentTags`.
+- `F3` Run the final manual regression pass using `MANUAL_REGRESSION_CHECKLIST.md`.

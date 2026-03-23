@@ -1,3 +1,5 @@
+import { MAX_ARTIST_SLOTS, buildSlotState } from "./slot_state.js";
+
 const ANIMA_SIZE_KEY = "_anima_saved_size";
 
 function ensureNodeProperties(node) {
@@ -63,4 +65,44 @@ export function ensureResizePersistence(node) {
     if (!readStoredNodeSize(node)) {
         writeStoredNodeSize(node, node.size);
     }
+}
+
+export function ensureNodeRuntime(node) {
+    if (!node) return null;
+    if (!node._animaRuntime || typeof node._animaRuntime !== "object") {
+        node._animaRuntime = {
+            timers: Object.create(null),
+        };
+    }
+    return node._animaRuntime;
+}
+
+export function clearNodeTimer(node, key) {
+    const runtime = ensureNodeRuntime(node);
+    const timer = runtime?.timers?.[key];
+    if (!timer) return;
+    clearTimeout(timer);
+    delete runtime.timers[key];
+}
+
+export function scheduleNodeTimer(node, key, delay, callback) {
+    const runtime = ensureNodeRuntime(node);
+    if (!runtime) return;
+    clearNodeTimer(node, key);
+    runtime.timers[key] = setTimeout(() => {
+        delete runtime.timers[key];
+        callback();
+    }, delay);
+}
+
+// `_currentSlot` and `_currentTags` are node-local runtime fields used by the
+// canvas widget and browser interactions. Keep writes centralized here.
+export function applyNodeSlotState(node, state) {
+    const next = buildSlotState({
+        ...state,
+        maxSlots: state?.maxSlots ?? MAX_ARTIST_SLOTS,
+    });
+    node._currentTags = [...next.tags];
+    node._currentSlot = next.currentSlot;
+    return next;
 }

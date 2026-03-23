@@ -36,6 +36,13 @@ export function createBrowserStore() {
     };
 }
 
+export function bindBrowserElements(store, el) {
+    store.el = el || null;
+    store.grid = store.el?.querySelector("#anima-grid") || null;
+    store.countEl = store.el?.querySelector("#anima-count") || null;
+    return store.el;
+}
+
 export function getStoredBrowserCategory() {
     return safeLocalGet(BROWSER_CATEGORY_KEY, "all") === "favorites" ? "favorites" : "all";
 }

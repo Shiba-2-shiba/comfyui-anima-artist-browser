@@ -1,5 +1,6 @@
 import { app } from "../../scripts/app.js";
 import { CDN_BASE } from "./config.js";
+import { applyNodeSlotState } from "./node_runtime.js";
 import {
     MAX_ARTIST_SLOTS,
     applyArtistToSlotState,
@@ -63,13 +64,6 @@ function readNodeSlotState(node) {
         currentSlot: node?._currentSlot ?? 0,
         maxSlots: MAX_ARTIST_SLOTS,
     });
-}
-
-function applyNodeSlotState(node, state) {
-    const next = buildSlotState(state);
-    node._currentTags = [...next.tags];
-    node._currentSlot = next.currentSlot;
-    return next;
 }
 
 export function syncArtistState(node) {
