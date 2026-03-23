@@ -1,11 +1,17 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import { Data } from "./data.js";
-import { slotStateHasArtist } from "./slot_state.js";
-import { applyStyle, getNodeSlotState, setCurrentArtistSlot } from "./utils.js";
-
-const ANIMA_QUEUE_MODE_KEY = "_anima_queue_mode";
-const ANIMA_AUTO_QUEUE_KEY = "_anima_auto_queue";
+import { applyStyle, getNodeSlotState, replaceArtistSlots, setCurrentArtistSlot } from "./utils.js";
+import {
+    buildNextArtistSlotState,
+    buildRandomizedSlotState,
+    diffSlotStates,
+    loadFavoriteTagSet,
+    readAutoQueue,
+    readPinFavorites,
+    readQueueMode,
+    readRandomCount,
+} from "./queue_settings.js";
 
 function cycleBtn() {
     return document.getElementById("anima-cycle-btn");
@@ -16,7 +22,11 @@ function cycleStatus() {
 }
 
 export const AutoCycle = (() => {
-    let _running = false, _handler = null, _node = null, _count = 0, _manualNext = null, _queueWasActive = false;
+    let _running = false;
+    let _handler = null;
+    let _node = null;
+    let _count = 0;
+    let _queueWasActive = false;
     const _listeners = new Set();
 
     function _notify(event, payload = {}) {
@@ -34,45 +44,16 @@ export const AutoCycle = (() => {
         status.classList.toggle("active", !!active);
     }
 
-    function _readQueueMode(node) {
-        const value = String(node?.properties?.[ANIMA_QUEUE_MODE_KEY] || "").trim().toLowerCase().replace(/\s+/g, "_");
-        if (value === "next" || value === "next_artist") return "next_artist";
-        if (value === "random" || value === "random_artist") return "random_artist";
-        return "off";
-    }
-
-    function _readAutoQueue(node) {
-        return String(node?.properties?.[ANIMA_AUTO_QUEUE_KEY] || "off").toLowerCase() === "on";
-    }
-
     function _modeLabel(mode) {
         if (mode === "next_artist") return "Next Artist";
         if (mode === "random_artist") return "Random Artist";
         return "Off";
     }
 
-    async function _pickNextArtist(node) {
-        const list = await Data.all();
-        if (!Array.isArray(list) || !list.length) return null;
-
-        const state = getNodeSlotState(node);
-        const slotIndex = Number.isInteger(state?.currentSlot) ? state.currentSlot : 0;
-        const currentTag = String(state?.tags?.[slotIndex] || "").trim().toLowerCase();
-        const currentIndex = list.findIndex((artist) => String(artist?.tag || "").trim().toLowerCase() === currentTag);
-        if (currentIndex < 0) return list[0];
-        return list[(currentIndex + 1) % list.length];
-    }
-
-    async function _pickRandomArtist(node) {
-        const current = getNodeSlotState(node);
-        let artist = _manualNext;
-        _manualNext = null;
-        if (artist) return artist;
-        artist = await Data.random();
-        if (artist && slotStateHasArtist(current, artist)) {
-            artist = await Data.random();
-        }
-        return artist;
+    function _findArtistByTag(artists, tag) {
+        const normalized = String(tag || "").trim().toLowerCase();
+        if (!normalized) return null;
+        return artists.find((artist) => String(artist?.tag || "").trim().toLowerCase() === normalized) || null;
     }
 
     async function _advance() {
@@ -84,36 +65,65 @@ export const AutoCycle = (() => {
         }
 
         try {
-            const mode = _readQueueMode(_node);
+            const mode = readQueueMode(_node);
             if (mode === "off") {
                 _setStatus("set After Queue first", false);
                 stop();
                 return;
             }
 
-            let a = _manualNext;
-            if (!a) {
-                a = mode === "next_artist"
-                    ? await _pickNextArtist(_node)
-                    : await _pickRandomArtist(_node);
-            } else {
-                _manualNext = null;
+            const artists = await Data.all();
+            if (!Array.isArray(artists) || !artists.length) {
+                _setStatus("no artists available", false);
+                stop();
+                return;
             }
-            if (!a) return;
-            applyStyle(_node, a, { preferCurrentSlot: true });
-            _count++;
-            const autoQueue = _readAutoQueue(_node);
-            const tag = a.tag.replace(/_/g, " ");
+
+            const previousState = getNodeSlotState(_node);
+            const pinFavorites = readPinFavorites(_node);
+            const favoriteTags = pinFavorites ? await loadFavoriteTagSet(fetch) : new Set();
+            const nextState = mode === "next_artist"
+                ? buildNextArtistSlotState({
+                    state: previousState,
+                    artists,
+                    pinFavorites,
+                    favoriteTags,
+                })
+                : buildRandomizedSlotState({
+                    state: previousState,
+                    artists,
+                    count: readRandomCount(_node),
+                    pinFavorites,
+                    favoriteTags,
+                });
+
+            const changes = diffSlotStates(previousState, nextState);
+            if (!changes.length) {
+                _setStatus("no eligible slots to advance", false);
+                stop();
+                return;
+            }
+
+            replaceArtistSlots(_node, nextState.tags, nextState.currentSlot);
+            _count += 1;
+
+            const primaryTag = changes.find((entry) => entry.nextTag)?.nextTag || "";
+            const primaryArtist = _findArtistByTag(artists, primaryTag) || (primaryTag ? { tag: primaryTag } : null);
+            const autoQueue = readAutoQueue(_node);
+            const changeSummary = changes
+                .map((entry) => `S${entry.slotIndex + 1}`)
+                .join(", ");
+
             if (autoQueue) {
-                _setStatus(`queued #${_count} @${tag}`, true);
-                _notify("applied", { artist: a, mode, autoQueue: true });
+                _setStatus(`queued #${_count} ${changeSummary}`, true);
+                _notify("applied", { artist: primaryArtist, artists: changes.map((entry) => _findArtistByTag(artists, entry.nextTag) || { tag: entry.nextTag }), changes, mode, autoQueue: true });
                 _queueWasActive = true;
                 app.queuePrompt(0, 1);
                 return;
             }
 
-            _setStatus(`advanced #${_count} @${tag} - queue manually`, true);
-            _notify("applied", { artist: a, mode, autoQueue: false });
+            _setStatus(`advanced #${_count} ${changeSummary} - queue manually`, true);
+            _notify("applied", { artist: primaryArtist, artists: changes.map((entry) => _findArtistByTag(artists, entry.nextTag) || { tag: entry.nextTag }), changes, mode, autoQueue: false });
         } catch {
             stop();
         }
@@ -126,7 +136,8 @@ export const AutoCycle = (() => {
             _notify("missing-node");
             return false;
         }
-        const mode = _readQueueMode(node);
+
+        const mode = readQueueMode(node);
         if (mode === "off") {
             _setStatus("set After Queue first", false);
             _notify("missing-mode");
@@ -137,6 +148,7 @@ export const AutoCycle = (() => {
         _node = node;
         _count = 0;
         _queueWasActive = false;
+
         if (!_handler) {
             _handler = (e) => {
                 if (!_running || !_node) return;
@@ -147,20 +159,22 @@ export const AutoCycle = (() => {
                 }
                 if (queueRemaining === 0 && _queueWasActive) {
                     _queueWasActive = false;
-                    _setStatus("queue finished, choosing next...", true);
-                    _notify("queue-empty", { mode: _readQueueMode(_node), autoQueue: _readAutoQueue(_node) });
+                    _setStatus("queue finished, applying next artists...", true);
+                    _notify("queue-empty", { mode: readQueueMode(_node), autoQueue: readAutoQueue(_node) });
                     _advance();
                 }
             };
             api.addEventListener("status", _handler);
         }
+
         const btn = cycleBtn();
         if (btn) {
             btn.classList.add("running");
             btn.querySelector(".btn-icon").innerHTML = "&#9646;&#9646;";
             btn.querySelector(".btn-lbl").textContent = "Stop";
         }
-        const autoQueue = _readAutoQueue(node);
+
+        const autoQueue = readAutoQueue(node);
         if (autoQueue) {
             _setStatus(`starting ${_modeLabel(mode)}...`, true);
             _notify("start", { mode, autoQueue });
@@ -194,33 +208,27 @@ export const AutoCycle = (() => {
         return _running;
     }
 
-    async function inject(node, a, options = {}) {
+    async function inject(node, artist, options = {}) {
         _node = node;
         if (Number.isInteger(options?.slotIndex)) {
             setCurrentArtistSlot(node, options.slotIndex);
         }
-        if (!_running) {
-            applyStyle(node, a, options);
-            const autoQueue = _readAutoQueue(node);
-            if (autoQueue) {
-                _queueWasActive = true;
+
+        applyStyle(node, artist, options);
+
+        const autoQueue = readAutoQueue(node);
+        _notify("applied", { artist, node, manual: true, autoQueue });
+
+        if (autoQueue) {
+            _setStatus(`queued manual @${String(artist?.tag || "").replace(/_/g, " ")}`, true);
+            _queueWasActive = true;
+            if ((app.ui.lastQueueSize || 0) === 0) {
                 app.queuePrompt(0, 1);
             }
-            _notify("applied", { artist: a, node });
             return;
         }
-        _manualNext = a;
-        applyStyle(node, a, {
-            ...options,
-            preferCurrentSlot: true,
-        });
-        const autoQueue = _readAutoQueue(node);
-        _setStatus(autoQueue ? `queued manual @${a.tag.replace(/_/g, " ")}` : `manual @${a.tag.replace(/_/g, " ")} ready`, true);
-        _notify("applied", { artist: a, node, manual: true, autoQueue });
-        if (autoQueue && (app.ui.lastQueueSize || 0) === 0) {
-            _queueWasActive = true;
-            app.queuePrompt(0, 1);
-        }
+
+        _setStatus(`manual @${String(artist?.tag || "").replace(/_/g, " ")} ready`, true);
     }
 
     function subscribe(listener) {

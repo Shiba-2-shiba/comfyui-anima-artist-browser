@@ -4,12 +4,21 @@ import { Data } from "./data.js";
 import { AutoCycle } from "./autocycle.js";
 import { MAX_ARTIST_SLOTS, clampSlotIndex } from "./slot_state.js";
 import { applyStyle, clearArtistSlots, cycleArtistSlot, getNodeSlotState, replaceArtistSlots, syncArtistState } from "./utils.js";
+import {
+    readRandomCount,
+    writeRandomCount,
+    readPinFavorites,
+    writePinFavorites,
+    normalizeQueueMode,
+    readQueueMode,
+    writeQueueMode,
+    readAutoQueue,
+    writeAutoQueue,
+    loadFavoriteTagSet,
+    buildRandomizedSlotState,
+} from "./queue_settings.js";
 
 const ANIMA_SIZE_KEY = "_anima_saved_size";
-const ANIMA_RANDOM_COUNT_KEY = "_anima_random_count";
-const ANIMA_PIN_FAVORITES_KEY = "_anima_pin_favorites";
-const ANIMA_QUEUE_MODE_KEY = "_anima_queue_mode";
-const ANIMA_AUTO_QUEUE_KEY = "_anima_auto_queue";
 const LAYOUT_REFRESH_DELAYS = [140, 360];
 const INITIAL_GRAPH_SWEEP_DELAYS = [0, 320];
 
@@ -49,67 +58,6 @@ function writeStoredNodeSize(node, value) {
     if (!normalized) return null;
     const props = ensureNodeProperties(node);
     props[ANIMA_SIZE_KEY] = normalized;
-    return normalized;
-}
-
-function normalizeRandomCount(value) {
-    const count = Number(value);
-    if (!Number.isFinite(count)) return 1;
-    return Math.max(1, Math.min(MAX_ARTIST_SLOTS, Math.trunc(count)));
-}
-
-function readRandomCount(node) {
-    const props = ensureNodeProperties(node);
-    return normalizeRandomCount(props[ANIMA_RANDOM_COUNT_KEY]);
-}
-
-function writeRandomCount(node, value) {
-    const props = ensureNodeProperties(node);
-    const normalized = normalizeRandomCount(value);
-    props[ANIMA_RANDOM_COUNT_KEY] = normalized;
-    return normalized;
-}
-
-function readPinFavorites(node) {
-    const props = ensureNodeProperties(node);
-    return String(props[ANIMA_PIN_FAVORITES_KEY] || "off").toLowerCase() === "on";
-}
-
-function writePinFavorites(node, value) {
-    const props = ensureNodeProperties(node);
-    const normalized = String(value || "").toLowerCase() === "on" ? "on" : "off";
-    props[ANIMA_PIN_FAVORITES_KEY] = normalized;
-    return normalized;
-}
-
-function normalizeQueueMode(value) {
-    const normalized = String(value || "").trim().toLowerCase().replace(/\s+/g, "_");
-    if (normalized === "next" || normalized === "next_artist") return "next_artist";
-    if (normalized === "random" || normalized === "random_artist") return "random_artist";
-    return "off";
-}
-
-function readQueueMode(node) {
-    const props = ensureNodeProperties(node);
-    return normalizeQueueMode(props[ANIMA_QUEUE_MODE_KEY]);
-}
-
-function writeQueueMode(node, value) {
-    const props = ensureNodeProperties(node);
-    const normalized = normalizeQueueMode(value);
-    props[ANIMA_QUEUE_MODE_KEY] = normalized;
-    return normalized;
-}
-
-function readAutoQueue(node) {
-    const props = ensureNodeProperties(node);
-    return String(props[ANIMA_AUTO_QUEUE_KEY] || "off").toLowerCase() === "on";
-}
-
-function writeAutoQueue(node, value) {
-    const props = ensureNodeProperties(node);
-    const normalized = String(value || "").toLowerCase() === "on" ? "on" : "off";
-    props[ANIMA_AUTO_QUEUE_KEY] = normalized;
     return normalized;
 }
 
@@ -410,75 +358,20 @@ function ensureAutoQueueWidget(node) {
     return !!widget;
 }
 
-async function loadFavoriteTagSet() {
-    try {
-        const response = await fetch("/anima/favorites");
-        if (!response.ok) return new Set();
-        const payload = await response.json().catch(() => ({}));
-        const items = Array.isArray(payload?.items) ? payload.items : [];
-        return new Set(
-            items
-                .filter((item) => String(item?.kind || "").toLowerCase() === "style")
-                .map((item) => String(item?.tag || "").trim().replace(/\s+/g, "_").toLowerCase())
-                .filter(Boolean)
-        );
-    } catch {
-        return new Set();
-    }
-}
-
 async function applyRandomArtists(node) {
-    const count = readRandomCount(node);
     const artists = await Data.all();
     if (!Array.isArray(artists) || !artists.length) return;
-
-    const unique = [];
-    const seen = new Set();
-    for (const artist of artists) {
-        const tag = String(artist?.tag || "").trim();
-        if (!tag || seen.has(tag)) continue;
-        seen.add(tag);
-        unique.push(artist);
-    }
-    if (!unique.length) return;
-
-    for (let i = unique.length - 1; i > 0; i -= 1) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [unique[i], unique[j]] = [unique[j], unique[i]];
-    }
-
     const pinFavorites = readPinFavorites(node);
-    const currentState = getNodeSlotState(node);
-    const favoriteTags = pinFavorites ? await loadFavoriteTagSet() : new Set();
-    const pinnedSlots = [];
-    const pinnedTags = new Set();
-
-    if (pinFavorites) {
-        currentState.tags.forEach((tag, slotIndex) => {
-            if (!tag || !favoriteTags.has(tag) || pinnedSlots.length >= count) return;
-            pinnedSlots.push({ slotIndex, tag });
-            pinnedTags.add(tag);
-        });
-    }
-
-    const availableRandom = unique.filter((artist) => !pinnedTags.has(String(artist?.tag || "").trim().toLowerCase()));
-    const nextTags = Array.from({ length: MAX_ARTIST_SLOTS }, () => "");
-
-    pinnedSlots.forEach(({ slotIndex, tag }) => {
-        nextTags[slotIndex] = tag;
+    const favoriteTags = pinFavorites ? await loadFavoriteTagSet(fetch) : new Set();
+    const nextState = buildRandomizedSlotState({
+        state: getNodeSlotState(node),
+        artists,
+        count: readRandomCount(node),
+        pinFavorites,
+        favoriteTags,
     });
 
-    let filled = pinnedSlots.length;
-    let randomIndex = 0;
-    for (let slotIndex = 0; slotIndex < MAX_ARTIST_SLOTS && filled < count; slotIndex += 1) {
-        if (nextTags[slotIndex]) continue;
-        const artist = availableRandom[randomIndex++];
-        if (!artist) break;
-        nextTags[slotIndex] = String(artist.tag || "").trim().replace(/\s+/g, "_").toLowerCase();
-        filled += 1;
-    }
-
-    replaceArtistSlots(node, nextTags, 0);
+    replaceArtistSlots(node, nextState.tags, nextState.currentSlot);
     queuePromptIfEnabled(node);
 }
 
