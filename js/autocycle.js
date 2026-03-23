@@ -14,6 +14,22 @@ function cycleStatus() {
 
 export const AutoCycle = (() => {
     let _running = false, _handler = null, _node = null, _count = 0, _manualNext = null;
+    const _listeners = new Set();
+
+    function _notify(event, payload = {}) {
+        for (const listener of _listeners) {
+            try {
+                listener({ event, running: _running, node: _node, count: _count, ...payload });
+            } catch { }
+        }
+    }
+
+    function _setStatus(text, active = false) {
+        const status = cycleStatus();
+        if (!status) return;
+        status.textContent = text;
+        status.classList.toggle("active", !!active);
+    }
 
     async function _next() {
         if (!_running || !_node) return;
@@ -31,11 +47,8 @@ export const AutoCycle = (() => {
             if (!a) return;
             applyStyle(_node, a, { preferCurrentSlot: true });
             _count++;
-            const status = cycleStatus();
-            if (status) {
-                status.textContent = `${_count} done - @${a.tag.replace(/_/g, " ")}`;
-                status.classList.add("active");
-            }
+            _setStatus(`queued #${_count} @${a.tag.replace(/_/g, " ")}`, true);
+            _notify("applied", { artist: a });
             app.queuePrompt(0, 1);
         } catch {
             stop();
@@ -43,14 +56,23 @@ export const AutoCycle = (() => {
     }
 
     function start(node) {
-        if (_running) return;
+        if (_running) return true;
+        if (!node) {
+            _setStatus("open from a node first", false);
+            _notify("missing-node");
+            return false;
+        }
         _running = true;
         _node = node;
         _count = 0;
         if (!_handler) {
             _handler = (e) => {
                 if (!_running || !_node) return;
-                if (e.detail?.exec_info?.queue_remaining === 0) _next();
+                if (e.detail?.exec_info?.queue_remaining === 0) {
+                    _setStatus("queue finished, choosing next...", true);
+                    _notify("queue-empty");
+                    _next();
+                }
             };
             api.addEventListener("status", _handler);
         }
@@ -60,7 +82,10 @@ export const AutoCycle = (() => {
             btn.querySelector(".btn-icon").innerHTML = "&#9646;&#9646;";
             btn.querySelector(".btn-lbl").textContent = "Stop";
         }
+        _setStatus("starting auto cycle...", true);
+        _notify("start");
         _next();
+        return true;
     }
 
     function stop() {
@@ -76,11 +101,8 @@ export const AutoCycle = (() => {
             btn.querySelector(".btn-icon").innerHTML = "&#9654;";
             btn.querySelector(".btn-lbl").textContent = "Play";
         }
-        const status = cycleStatus();
-        if (status) {
-            status.textContent = `stopped after ${_count}`;
-            status.classList.remove("active");
-        }
+        _setStatus(`stopped after ${_count}`, false);
+        _notify("stop");
     }
 
     function toggle(node) {
@@ -95,6 +117,7 @@ export const AutoCycle = (() => {
         }
         if (!_running) {
             applyStyle(node, a, options);
+            _notify("applied", { artist: a, node });
             return;
         }
         if (slotStateHasArtist(getNodeSlotState(node), a)) a = await Data.random();
@@ -103,8 +126,18 @@ export const AutoCycle = (() => {
             ...options,
             preferCurrentSlot: true,
         });
+        _setStatus(`queued manual @${a.tag.replace(/_/g, " ")}`, true);
+        _notify("applied", { artist: a, node, manual: true });
         if ((app.ui.lastQueueSize || 0) === 0) _next();
     }
 
-    return { toggle, stop, inject, get running() { return _running; } };
+    function subscribe(listener) {
+        if (typeof listener !== "function") return () => { };
+        _listeners.add(listener);
+        return () => {
+            _listeners.delete(listener);
+        };
+    }
+
+    return { toggle, stop, inject, subscribe, get running() { return _running; } };
 })();

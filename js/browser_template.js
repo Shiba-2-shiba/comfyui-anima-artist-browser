@@ -44,7 +44,7 @@ export function getBrowserTemplate(siteBase) {
                         <input type="text" placeholder="Search artists..." autocomplete="off" spellcheck="false"/>
                     </div>
                     <div class="cycle-gap"></div>
-                    <span class="cycle-hint">Search locally, fill slots quickly, then cycle prompt variations through the queue</span>
+                    <span class="cycle-hint">Play queues one random artist change at a time and advances when the queue finishes</span>
                 </div>
                 <div class="slot-bar" id="anima-slot-bar">
                     <div class="slot-bar-copy">

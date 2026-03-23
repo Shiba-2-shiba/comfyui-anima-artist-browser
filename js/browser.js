@@ -18,6 +18,7 @@ import { showToast } from "./toast.js";
 import { createBrowserController } from "./browser_controller.js";
 import { createBrowserStore, getStoredBrowserCategory, setBrowserCategory } from "./browser_store.js";
 import { createBrowserView } from "./browser_view.js";
+import { AutoCycle } from "./autocycle.js";
 
 const store = createBrowserStore();
 
@@ -44,11 +45,25 @@ const view = createBrowserView({
     swipe: Swipe,
 });
 
+let cycleUnsubscribe = null;
+
+function ensureCycleBridge() {
+    if (cycleUnsubscribe) return;
+    cycleUnsubscribe = AutoCycle.subscribe(({ node, artist }) => {
+        if (!store.el || node !== store.activeNode) return;
+        if (artist?.tag) {
+            view.highlight(String(artist.tag));
+        }
+        view.refreshSlotSummary();
+    });
+}
+
 function ensureBuilt() {
     if (document.getElementById("anima-browser")) {
         store.el = document.getElementById("anima-browser");
         store.grid = store.el?.querySelector("#anima-grid") || null;
         store.countEl = store.el?.querySelector("#anima-count") || null;
+        ensureCycleBridge();
         return;
     }
 
@@ -60,6 +75,7 @@ function ensureBuilt() {
     document.body.appendChild(store.el);
     store.grid = store.el.querySelector("#anima-grid");
     store.countEl = store.el.querySelector("#anima-count");
+    ensureCycleBridge();
 
     attachBrowserEvents({
         el: store.el,
