@@ -5,6 +5,7 @@ import { logWarn } from "./logger.js";
 import { getNodeSlotState, replaceArtistSlots } from "./utils.js";
 import {
     loadFavoriteTagSet,
+    queueModeNeedsFavoriteTags,
     readAutoQueue,
     readPinFavorites,
     readQueueMode,
@@ -44,7 +45,9 @@ export async function advanceNodeAfterQueue(node, overrides = {}) {
 
     const previousState = getNodeSlotState(node);
     const pinFavorites = readPinFavorites(node);
-    const favoriteTags = pinFavorites ? await loadFavoriteTagSet(fetch) : new Set();
+    const favoriteTags = queueModeNeedsFavoriteTags(mode, pinFavorites)
+        ? await loadFavoriteTagSet(fetch)
+        : new Set();
     const { nextState, changes } = resolveQueueAdvance({
         state: previousState,
         artists,

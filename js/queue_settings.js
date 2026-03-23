@@ -87,8 +87,21 @@ export function normalizeQueueMode(value) {
     if (normalized === "fixed") return "fixed";
     if (normalized === "next" || normalized === "next_artist") return "next_artist";
     if (normalized === "random" || normalized === "random_artist") return "random_artist";
+    if (
+        normalized === "favorite_random"
+        || normalized === "favorite_random_artist"
+        || normalized === "favorites_random"
+        || normalized === "favorites_random_artist"
+    ) {
+        return "favorite_random";
+    }
     if (normalized === "off") return "fixed";
     return "fixed";
+}
+
+export function queueModeNeedsFavoriteTags(mode, pinFavorites = false) {
+    const normalizedMode = normalizeQueueMode(mode);
+    return !!pinFavorites || normalizedMode === "favorite_random";
 }
 
 export function readQueueMode(node) {
@@ -152,10 +165,16 @@ export function buildRandomizedSlotState({
     artists,
     pinFavorites = false,
     favoriteTags = new Set(),
+    allowedTags = null,
     randomFn = Math.random,
 }) {
     const current = buildSlotState(state);
-    const pool = uniqueArtists(artists);
+    const allowedTagSet = allowedTags instanceof Set ? new Set(
+        [...allowedTags]
+            .map((tag) => normalizeTag(tag))
+            .filter(Boolean)
+    ) : null;
+    const pool = uniqueArtists(artists).filter((artist) => !allowedTagSet || allowedTagSet.has(artist._queueTag));
     if (!pool.length) return current;
 
     const targetCount = current.tags.filter(Boolean).length;
@@ -212,6 +231,16 @@ export function buildQueuedSlotState({
             artists,
             pinFavorites,
             favoriteTags,
+            randomFn,
+        });
+    }
+    if (normalizedMode === "favorite_random") {
+        return buildRandomizedSlotState({
+            state,
+            artists,
+            pinFavorites,
+            favoriteTags,
+            allowedTags: favoriteTags,
             randomFn,
         });
     }

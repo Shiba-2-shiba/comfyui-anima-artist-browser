@@ -86,9 +86,11 @@ Anima Artist Browser
 
 ### After Queue
 
-`After Queue` を `Next Artist` または `Random Artist` にすると、Queue 実行時は現在のスロット内容で出力しつつ、送信直後に次回用の artist 構成へ更新します。
+`After Queue` を `Next Artist`、`Random Artist`、`Favorite Random` のいずれかにすると、Queue 実行時は現在のスロット内容で出力しつつ、送信直後に次回用の artist 構成へ更新します。
 
 `Random Artist` は、現在スロットに入っている artist 数だけを対象にランダム更新します。未使用スロットは空のまま維持されます。
+
+`Favorite Random` は、favorites に登録済みの artist だけを候補にしてランダム更新します。現在埋まっているスロット数だけを更新し、未使用スロットは空のまま維持されます。
 
 `Pin Favorites` を `On` にすると、現在スロットに入っていて favorites 登録済みの artist は固定したまま、残りの枠だけを更新します。
 
@@ -117,6 +119,11 @@ Anima Artist Browser
 
 `Random Artist` は、現在埋まっているスロット数だけを対象に更新します。  
 たとえば 2 スロットだけ埋まっている場合は、3 枠目を勝手に増やさず 2 枠だけを再抽選します。
+
+### Favorite Random
+
+`Favorite Random` は、favorites に登録した artist だけから再抽選したい場合のモードです。  
+favorites が少ない場合は、その件数ぶんまでだけ埋まり、残りは空のままになります。
 
 ### お気に入り固定ランダム
 

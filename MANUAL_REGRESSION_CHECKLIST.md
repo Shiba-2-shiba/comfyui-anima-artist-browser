@@ -25,6 +25,8 @@ Run this checklist after each refactor phase that changes behavior.
   - Queue should submit current slots and then advance for next run.
 - `After Queue = Random Artist`
   - Queue should submit current slots and then randomize only the filled slot count.
+- `After Queue = Favorite Random`
+  - Queue should submit current slots and then randomize only from favorited artists.
 - Repeat each of the above with `Auto Queue = Off`.
 - Repeat each of the above with `Auto Queue = On`.
 
