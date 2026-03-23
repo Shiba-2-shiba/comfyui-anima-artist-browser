@@ -22,6 +22,7 @@ export function createStyleCard({
         <div class="anima-card-img" data-init="${escapeHtml((artist.tag?.[0] || "?").toUpperCase())}">
             <img loading="lazy" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(artist.tag || "")}" onerror="this.style.display='none';this.parentElement.classList.add('no-img')"/>
             ${rankHtml}
+            <div class="anima-card-favorite-badge${isFav ? " active" : ""}" title="Favorited">&#10084;</div>
             <div class="anima-card-overlay">
                 <button class="anima-card-pick">Apply</button>
                 <button class="anima-card-fav">${isFav ? "Unfavorite" : "Favorite"}</button>
@@ -69,11 +70,13 @@ export function createStyleCard({
     });
 
     const favBtn = card.querySelector(".anima-card-fav");
+    const favBadge = card.querySelector(".anima-card-favorite-badge");
     favBtn.addEventListener("click", async (e) => {
         e.stopPropagation();
         const res = await onToggleFavorite?.(artist, favBtn, mediaEl || favBtn);
         if (res?.ok && typeof res.favorited === "boolean") {
             favBtn.textContent = res.favorited ? "Unfavorite" : "Favorite";
+            favBadge?.classList.toggle("active", res.favorited);
         }
     });
 

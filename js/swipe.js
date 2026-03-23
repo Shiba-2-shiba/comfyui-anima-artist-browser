@@ -9,11 +9,13 @@ export const Swipe = (() => {
     let el = null;
     let container = null;
     let prevImg = null;
+    let curFrame = null;
     let curImg = null;
     let nextImg = null;
     let titleEl = null;
     let counterEl = null;
     let favoriteBtn = null;
+    let favoriteBadge = null;
     let slotStateEl = null;
 
     let _list = [];
@@ -53,7 +55,10 @@ export const Swipe = (() => {
             </div>
             <div class="swipe-container" id="anima-swipe-container">
                 <img class="swipe-image swipe-image--prev" id="anima-swipe-prev" alt="" loading="eager"/>
-                <img class="swipe-image swipe-image--current" id="anima-swipe-current" alt="" loading="eager"/>
+                <div class="swipe-current-frame" id="anima-swipe-current-frame">
+                    <img class="swipe-image swipe-image--current" id="anima-swipe-current" alt="" loading="eager"/>
+                    <div class="swipe-image-favorite-badge" id="anima-swipe-favorite-badge" title="Favorited">&#10084;</div>
+                </div>
                 <img class="swipe-image swipe-image--next" id="anima-swipe-next" alt="" loading="eager"/>
                 <aside class="swipe-slot-panel" id="anima-swipe-slots"></aside>
             </div>
@@ -63,11 +68,13 @@ export const Swipe = (() => {
 
         container = el.querySelector("#anima-swipe-container");
         prevImg = el.querySelector("#anima-swipe-prev");
+        curFrame = el.querySelector("#anima-swipe-current-frame");
         curImg = el.querySelector("#anima-swipe-current");
         nextImg = el.querySelector("#anima-swipe-next");
         titleEl = el.querySelector("#anima-swipe-title");
         counterEl = el.querySelector("#anima-swipe-counter");
         favoriteBtn = el.querySelector("#anima-swipe-favorite");
+        favoriteBadge = el.querySelector("#anima-swipe-favorite-badge");
         slotStateEl = el.querySelector("#anima-swipe-slots");
 
         el.querySelector(".backdrop").addEventListener("click", close);
@@ -117,12 +124,19 @@ export const Swipe = (() => {
 
     function _setFavoriteState(item = _getItem(_index)) {
         if (!favoriteBtn) return;
-        const favorited = item && typeof _isFavorited === "function" ? !!_isFavorited(item) : false;
+        const favorited = item && typeof item === "object" && "_favorited" in item
+            ? !!item._favorited
+            : item && typeof _isFavorited === "function"
+                ? !!_isFavorited(item)
+                : false;
         favoriteBtn.dataset.active = favorited ? "true" : "false";
         favoriteBtn.textContent = favorited ? "Favorite ON" : "Favorite OFF";
         favoriteBtn.title = favorited
             ? "Right click the current image to remove from favorites"
             : "Right click the current image to add to favorites";
+        if (favoriteBadge) {
+            favoriteBadge.dataset.active = favorited ? "true" : "false";
+        }
     }
 
     function _renderSlotState() {
@@ -179,11 +193,13 @@ export const Swipe = (() => {
             _actionInFlight = true;
             const result = await _onToggleFavorite?.(item, curImg || container || el);
             if (result?.ok && typeof result.favorited === "boolean") {
-                favoriteBtn.dataset.active = result.favorited ? "true" : "false";
-                favoriteBtn.textContent = result.favorited ? "Favorite ON" : "Favorite OFF";
-                favoriteBtn.title = result.favorited
-                    ? "Right click the current image to remove from favorites"
-                    : "Right click the current image to add to favorites";
+                _setFavoriteState({
+                    ...item,
+                    _favorited: result.favorited,
+                });
+                if (favoriteBadge) {
+                    favoriteBadge.dataset.active = result.favorited ? "true" : "false";
+                }
             }
         } catch (error) {
             logWarn("Swipe favorite handler failed", error);
