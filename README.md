@@ -84,16 +84,13 @@ Anima Artist Browser
 スタイルブラウザを開きます。  
 一覧から選んだアーティストは、空いているスロットに順番に入ります。空きがない場合は現在選択中のスロットを上書きします。
 
-### Random Style
+### After Queue
 
-`Random Count` で 1 / 2 / 3 を選び、その数だけランダムなアーティストをまとめて選択します。  
-未使用スロットは空に戻ります。
+`After Queue` を `Next Artist` または `Random Artist` にすると、Queue 実行時は現在のスロット内容で出力しつつ、送信直後に次回用の artist 構成へ更新します。
 
-`Pin Favorites` を `On` にすると、現在スロットに入っていて favorites 登録済みの artist は固定したまま、残りの枠だけをランダムで補います。
+`Random Artist` は、現在スロットに入っている artist 数だけを対象にランダム更新します。未使用スロットは空のまま維持されます。
 
-### Next Slot
-
-現在の上書き対象スロットを `1 -> 2 -> 3 -> 1` の順で切り替えます。
+`Pin Favorites` を `On` にすると、現在スロットに入っていて favorites 登録済みの artist は固定したまま、残りの枠だけを更新します。
 
 ### Clear Styles
 

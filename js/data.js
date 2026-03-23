@@ -41,10 +41,5 @@ export const Data = (() => {
         return list.filter(a => a._s.includes(lq));
     }
 
-    async function random() {
-        const list = await all();
-        return list.length ? list[Math.floor(Math.random() * list.length)] : null;
-    }
-
-    return { all, reset, search, random };
+    return { all, reset, search };
 })();

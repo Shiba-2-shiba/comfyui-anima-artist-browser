@@ -40,24 +40,11 @@ export function getNextEmptySlot(tags = []) {
     return tags.findIndex((tag) => !tag);
 }
 
-export function cycleSlotState(state) {
-    const next = buildSlotState(state);
-    next.currentSlot = (next.currentSlot + 1) % next.maxSlots;
-    return next;
-}
-
 export function clearSlotState(state) {
     const next = buildSlotState(state);
     next.tags = Array.from({ length: next.maxSlots }, () => "");
     next.currentSlot = 0;
     return next;
-}
-
-export function slotStateHasArtist(state, artist) {
-    const tag = normalizeArtist(artist?.tag || artist?.token || artist?.display || artist || "").tag;
-    if (!tag) return false;
-    const normalizedState = buildSlotState(state);
-    return normalizedState.tags.includes(tag);
 }
 
 export function applyArtistToSlotState(state, artist, options = {}) {
@@ -96,15 +83,4 @@ export function applyArtistToSlotState(state, artist, options = {}) {
         tag: normalized.tag,
         token: normalized.token,
     };
-}
-
-export function stripLeadingArtist(prompt = "") {
-    return String(prompt || "").replace(/^\s*@[^,\n]+\s*,?\s*/i, "").trim();
-}
-
-export function composeArtistAndPrompt(artistToken = "", promptText = "") {
-    const artist = String(artistToken || "").trim().replace(/[\s,]+$/g, "");
-    const prompt = String(promptText || "").trim().replace(/^[,\s]+/g, "");
-    if (artist && prompt) return `${artist}, ${prompt}`;
-    return artist || prompt;
 }

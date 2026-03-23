@@ -1,15 +1,23 @@
 import { buildSlotState } from "./slot_state.js";
 
-export const ANIMA_RANDOM_COUNT_KEY = "_anima_random_count";
 export const ANIMA_PIN_FAVORITES_KEY = "_anima_pin_favorites";
 export const ANIMA_QUEUE_MODE_KEY = "_anima_queue_mode";
 export const ANIMA_AUTO_QUEUE_KEY = "_anima_auto_queue";
+
+const WIDGET_PIN_FAVORITES = "Pin Favorites";
+const WIDGET_QUEUE_MODE = "After Queue";
+const WIDGET_AUTO_QUEUE = "Auto Queue";
 
 function ensureNodeProperties(node) {
     if (!node?.properties || typeof node.properties !== "object") {
         node.properties = {};
     }
     return node.properties;
+}
+
+function getWidgetValue(node, name) {
+    const widget = node?.widgets?.find((item) => String(item?.name || "") === name);
+    return widget?.value;
 }
 
 function normalizeTag(value) {
@@ -48,26 +56,15 @@ function pinnedSlots(state, favoriteTags, limit = state.maxSlots) {
     return slots;
 }
 
-export function normalizeRandomCount(value) {
-    const count = Number(value);
-    if (!Number.isFinite(count)) return 1;
-    return Math.max(1, Math.min(3, Math.trunc(count)));
-}
-
-export function readRandomCount(node) {
-    const props = ensureNodeProperties(node);
-    return normalizeRandomCount(props[ANIMA_RANDOM_COUNT_KEY]);
-}
-
-export function writeRandomCount(node, value) {
-    const props = ensureNodeProperties(node);
-    const normalized = normalizeRandomCount(value);
-    props[ANIMA_RANDOM_COUNT_KEY] = normalized;
-    return normalized;
-}
-
 export function readPinFavorites(node) {
     const props = ensureNodeProperties(node);
+    const widgetValue = getWidgetValue(node, WIDGET_PIN_FAVORITES);
+    if (widgetValue != null && widgetValue !== "") {
+        const normalized = String(widgetValue).toLowerCase() === "on" ? "on" : "off";
+        props[ANIMA_PIN_FAVORITES_KEY] = normalized;
+        return normalized === "on";
+    }
+
     return String(props[ANIMA_PIN_FAVORITES_KEY] || "off").toLowerCase() === "on";
 }
 
@@ -89,6 +86,13 @@ export function normalizeQueueMode(value) {
 
 export function readQueueMode(node) {
     const props = ensureNodeProperties(node);
+    const widgetValue = getWidgetValue(node, WIDGET_QUEUE_MODE);
+    if (widgetValue != null && widgetValue !== "") {
+        const normalized = normalizeQueueMode(widgetValue);
+        props[ANIMA_QUEUE_MODE_KEY] = normalized;
+        return normalized;
+    }
+
     return normalizeQueueMode(props[ANIMA_QUEUE_MODE_KEY]);
 }
 
@@ -101,6 +105,13 @@ export function writeQueueMode(node, value) {
 
 export function readAutoQueue(node) {
     const props = ensureNodeProperties(node);
+    const widgetValue = getWidgetValue(node, WIDGET_AUTO_QUEUE);
+    if (widgetValue != null && widgetValue !== "") {
+        const normalized = String(widgetValue).toLowerCase() === "on" ? "on" : "off";
+        props[ANIMA_AUTO_QUEUE_KEY] = normalized;
+        return normalized === "on";
+    }
+
     return String(props[ANIMA_AUTO_QUEUE_KEY] || "off").toLowerCase() === "on";
 }
 
@@ -131,7 +142,6 @@ export async function loadFavoriteTagSet(fetchImpl = fetch) {
 export function buildRandomizedSlotState({
     state,
     artists,
-    count,
     pinFavorites = false,
     favoriteTags = new Set(),
     randomFn = Math.random,
@@ -140,7 +150,8 @@ export function buildRandomizedSlotState({
     const pool = uniqueArtists(artists);
     if (!pool.length) return current;
 
-    const targetCount = normalizeRandomCount(count);
+    const targetCount = current.tags.filter(Boolean).length;
+    if (!targetCount) return current;
     const lockedSlots = pinFavorites ? pinnedSlots(current, favoriteTags, targetCount) : [];
     const lockedTags = new Set(lockedSlots.map((entry) => entry.tag));
     const randomizedPool = shuffledArtists(

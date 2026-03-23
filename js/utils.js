@@ -5,7 +5,6 @@ import {
     applyArtistToSlotState,
     buildSlotState,
     clearSlotState,
-    cycleSlotState,
     normalizeArtist,
 } from "./slot_state.js";
 
@@ -81,10 +80,6 @@ export function getNodeSlotState(node) {
     return syncArtistState(node);
 }
 
-export function getArtistTags(node) {
-    return [...getNodeSlotState(node).tags];
-}
-
 function setArtistSlot(node, slotIndex, value) {
     const widget = getArtistWidget(node, slotIndex);
     if (!widget) return false;
@@ -108,14 +103,6 @@ export function replaceArtistSlots(node, tags = [], currentSlot = 0) {
     node?.setDirtyCanvas?.(true, true);
     app.graph?.setDirtyCanvas?.(true, true);
     return next;
-}
-
-export function cycleArtistSlot(node) {
-    const next = cycleSlotState(getNodeSlotState(node));
-    applyNodeSlotState(node, next);
-    node?.setDirtyCanvas?.(true, true);
-    app.graph?.setDirtyCanvas?.(true, true);
-    return next.currentSlot;
 }
 
 export function setCurrentArtistSlot(node, slotIndex) {

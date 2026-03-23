@@ -5,17 +5,12 @@ from .services.favorites_service import (
     favorite_key_for_item,
     has_local_favorite,
     list_local_favorites,
-    list_style_favorites,
     remove_local_favorite,
     upsert_local_favorite,
 )
 
 
 def register_favorite_routes(server, require_local_token):
-    @server.instance.routes.get("/anima/custom_styles")
-    async def get_custom_styles(request):
-        return web.json_response(list_style_favorites())
-
     @server.instance.routes.get("/anima/favorites")
     async def get_favorites(request):
         return web.json_response({"items": list_local_favorites()})

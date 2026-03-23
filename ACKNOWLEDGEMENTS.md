@@ -5,7 +5,7 @@ This repository is maintained as an independent implementation, not as a fork or
 ## Original Project
 
 - Style explorer / dataset concept: [ThetaCursed / Anima Style Explorer](https://thetacursed.github.io/Anima-Style-Explorer)
-- This repository uses publicly available style and artist references as source material for local browsing and autocomplete support inside ComfyUI.
+- This repository uses publicly available style and artist references as source material for local browsing inside ComfyUI.
 
 ## Suggested Comment For The Original Repository
 
