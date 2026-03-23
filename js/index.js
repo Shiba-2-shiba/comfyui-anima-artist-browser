@@ -1,20 +1,17 @@
 import { app } from "../../scripts/app.js";
 import { injectCSS } from "./styles.js";
-import { Data } from "./data.js";
 import { AutoCycle } from "./autocycle.js";
 import { MAX_ARTIST_SLOTS, clampSlotIndex } from "./slot_state.js";
-import { clearArtistSlots, getNodeSlotState, replaceArtistSlots, syncArtistState } from "./utils.js";
+import { clearArtistSlots, syncArtistState } from "./utils.js";
+import { ensureQueuePromptHook } from "./queue_behavior.js";
 import {
     readPinFavorites,
     writePinFavorites,
-    buildNextArtistSlotState,
     normalizeQueueMode,
     readQueueMode,
     writeQueueMode,
     readAutoQueue,
     writeAutoQueue,
-    loadFavoriteTagSet,
-    buildRandomizedSlotState,
 } from "./queue_settings.js";
 
 const ANIMA_SIZE_KEY = "_anima_saved_size";
@@ -238,77 +235,6 @@ async function openStyleBrowser(node) {
     }
 }
 
-function slotStatesMatch(left, right) {
-    const leftTags = Array.isArray(left?.tags) ? left.tags : [];
-    const rightTags = Array.isArray(right?.tags) ? right.tags : [];
-    if (leftTags.length !== rightTags.length) return false;
-    for (let i = 0; i < leftTags.length; i += 1) {
-        if (leftTags[i] !== rightTags[i]) return false;
-    }
-    return true;
-}
-
-async function advanceNodeAfterQueue(node) {
-    if (!node || !isNodeAlive(node)) return false;
-
-    const mode = readQueueMode(node);
-    if (mode === "fixed") return false;
-
-    const artists = await Data.all();
-    if (!Array.isArray(artists) || !artists.length) return false;
-
-    const previousState = getNodeSlotState(node);
-    const pinFavorites = readPinFavorites(node);
-    const favoriteTags = pinFavorites ? await loadFavoriteTagSet(fetch) : new Set();
-    const nextState = mode === "next_artist"
-        ? buildNextArtistSlotState({
-            state: previousState,
-            artists,
-            pinFavorites,
-            favoriteTags,
-        })
-        : buildRandomizedSlotState({
-            state: previousState,
-            artists,
-            pinFavorites,
-            favoriteTags,
-        });
-
-    if (slotStatesMatch(previousState, nextState)) return false;
-
-    replaceArtistSlots(node, nextState.tags, nextState.currentSlot);
-    refreshNodeCanvas(node);
-    return true;
-}
-
-async function advanceQueuedNodesAfterSubmission() {
-    const nodes = (app.graph?._nodes || []).filter((node) => {
-        if (!isAnimaNode(node)) return false;
-        if (AutoCycle.isActiveFor?.(node)) return false;
-        if (readAutoQueue(node)) return false;
-        return readQueueMode(node) !== "fixed";
-    });
-
-    for (const node of nodes) {
-        try {
-            await advanceNodeAfterQueue(node);
-        } catch { }
-    }
-}
-
-function ensureQueuePromptHook() {
-    if (app._animaQueuePromptWrapped) return;
-    if (typeof app.queuePrompt !== "function") return;
-
-    const originalQueuePrompt = app.queuePrompt.bind(app);
-    app._animaQueuePromptWrapped = true;
-    app.queuePrompt = async function () {
-        const result = await originalQueuePrompt(...arguments);
-        await advanceQueuedNodesAfterSubmission();
-        return result;
-    };
-}
-
 function queueLoopButtonLabel(node) {
     return AutoCycle.isActiveFor?.(node) ? "Stop Queue Loop" : "Start Queue Loop";
 }
@@ -519,7 +445,11 @@ app.registerExtension({
     },
 
     setup() {
-        ensureQueuePromptHook();
+        ensureQueuePromptHook({
+            isAnimaNode,
+            isNodeAlive,
+            refreshNodeCanvas,
+        });
         INITIAL_GRAPH_SWEEP_DELAYS.forEach((delay) => {
             setTimeout(() => {
                 patchExistingNodes();
