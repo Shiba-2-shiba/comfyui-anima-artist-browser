@@ -80,9 +80,11 @@ export function writePinFavorites(node, value) {
 
 export function normalizeQueueMode(value) {
     const normalized = String(value || "").trim().toLowerCase().replace(/\s+/g, "_");
+    if (normalized === "fixed") return "fixed";
     if (normalized === "next" || normalized === "next_artist") return "next_artist";
     if (normalized === "random" || normalized === "random_artist") return "random_artist";
-    return "off";
+    if (normalized === "off") return "fixed";
+    return "fixed";
 }
 
 export function readQueueMode(node) {

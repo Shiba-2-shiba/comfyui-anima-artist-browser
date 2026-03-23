@@ -45,9 +45,10 @@ export const AutoCycle = (() => {
     }
 
     function _modeLabel(mode) {
+        if (mode === "fixed") return "Fixed";
         if (mode === "next_artist") return "Next Artist";
         if (mode === "random_artist") return "Random Artist";
-        return "Off";
+        return "Fixed";
     }
 
     function _findArtistByTag(artists, tag) {
@@ -66,9 +67,19 @@ export const AutoCycle = (() => {
 
         try {
             const mode = readQueueMode(_node);
-            if (mode === "off") {
-                _setStatus("set After Queue first", false);
-                stop();
+            const autoQueue = readAutoQueue(_node);
+            if (mode === "fixed") {
+                _count += 1;
+                if (autoQueue) {
+                    _setStatus(`queued #${_count} fixed artists`, true);
+                    _notify("applied", { artist: null, artists: [], changes: [], mode, autoQueue: true });
+                    _queueWasActive = true;
+                    app.queuePrompt(0, 1);
+                    return;
+                }
+
+                _setStatus(`fixed artists ready - queue manually`, true);
+                _notify("applied", { artist: null, artists: [], changes: [], mode, autoQueue: false });
                 return;
             }
 
@@ -109,7 +120,6 @@ export const AutoCycle = (() => {
 
             const primaryTag = changes.find((entry) => entry.nextTag)?.nextTag || "";
             const primaryArtist = _findArtistByTag(artists, primaryTag) || (primaryTag ? { tag: primaryTag } : null);
-            const autoQueue = readAutoQueue(_node);
             const changeSummary = changes
                 .map((entry) => `S${entry.slotIndex + 1}`)
                 .join(", ");
@@ -136,13 +146,7 @@ export const AutoCycle = (() => {
             _notify("missing-node");
             return false;
         }
-
         const mode = readQueueMode(node);
-        if (mode === "off") {
-            _setStatus("set After Queue first", false);
-            _notify("missing-mode");
-            return false;
-        }
 
         _running = true;
         _node = node;
@@ -159,7 +163,7 @@ export const AutoCycle = (() => {
                 }
                 if (queueRemaining === 0 && _queueWasActive) {
                     _queueWasActive = false;
-                    _setStatus("queue finished, applying next artists...", true);
+                    _setStatus(readQueueMode(_node) === "fixed" ? "queue finished, requeueing fixed artists..." : "queue finished, applying next artists...", true);
                     _notify("queue-empty", { mode: readQueueMode(_node), autoQueue: readAutoQueue(_node) });
                     _advance();
                 }
@@ -239,5 +243,9 @@ export const AutoCycle = (() => {
         };
     }
 
-    return { toggle, stop, inject, subscribe, get running() { return _running; } };
+    function isActiveFor(node) {
+        return _running && !!node && node === _node;
+    }
+
+    return { toggle, stop, inject, subscribe, isActiveFor, get running() { return _running; } };
 })();

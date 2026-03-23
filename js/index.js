@@ -245,6 +245,10 @@ function queuePromptIfEnabled(node) {
     return true;
 }
 
+function queueLoopButtonLabel(node) {
+    return AutoCycle.isActiveFor?.(node) ? "Stop Queue Loop" : "Start Queue Loop";
+}
+
 function ensureButtonWidget(node, name, callback, aliases = []) {
     const widgets = ensureWidgetArray(node);
     const allowedNames = [name, ...aliases];
@@ -308,13 +312,14 @@ function ensurePinFavoritesWidget(node) {
 function ensureQueueModeWidget(node) {
     const widgets = ensureWidgetArray(node);
     let widget = widgets.find((item) => String(item?.name || "") === "After Queue" && String(item?.type || "") === "combo");
-    const values = ["Off", "Next Artist", "Random Artist"];
+    const values = ["Fixed", "Next Artist", "Random Artist"];
 
     const toLabel = (value) => {
         const normalized = normalizeQueueMode(value);
+        if (normalized === "fixed") return "Fixed";
         if (normalized === "next_artist") return "Next Artist";
         if (normalized === "random_artist") return "Random Artist";
-        return "Off";
+        return "Fixed";
     };
 
     const onChange = (value) => {
@@ -356,6 +361,15 @@ function ensureAutoQueueWidget(node) {
     if (typeof node.addWidget !== "function") return false;
     widget = node.addWidget("combo", "Auto Queue", readAutoQueue(node) ? "On" : "Off", onChange, { values });
     return !!widget;
+}
+
+function ensureQueueLoopButton(node) {
+    return ensureButtonWidget(node, queueLoopButtonLabel(node), () => {
+        AutoCycle.toggle(node);
+        const button = ensureWidgetArray(node).find((item) => String(item?.type || "") === "button" && ["Start Queue Loop", "Stop Queue Loop"].includes(String(item?.name || "")));
+        if (button) button.name = queueLoopButtonLabel(node);
+        refreshNodeCanvas(node);
+    }, ["Start Queue Loop", "Stop Queue Loop"]);
 }
 
 async function applyRandomArtists(node) {
@@ -408,6 +422,7 @@ function patchNode(node, force = false) {
     const addedQueueMode = ensureQueueModeWidget(node);
     const addedPinFavorites = ensurePinFavoritesWidget(node);
     const addedAutoQueue = ensureAutoQueueWidget(node);
+    const addedQueueLoop = ensureQueueLoopButton(node);
 
     const addedBrowser = ensureButtonWidget(node, "Artist Browser", () => {
         openStyleBrowser(node);
@@ -433,6 +448,8 @@ function patchNode(node, force = false) {
         "Clear Artist",
         "_tag_display",
         "Auto Queue",
+        "Start Queue Loop",
+        "Stop Queue Loop",
         "artist_1",
         "artist_2",
         "artist_3",
@@ -440,7 +457,7 @@ function patchNode(node, force = false) {
 
     growNodeIfNeeded(node);
 
-    if (addedRandom || addedRandomCount || addedQueueMode || addedPinFavorites || addedAutoQueue || addedBrowser || addedNextSlot || addedClear || addedTag || collapsedArtists) {
+    if (addedRandom || addedRandomCount || addedQueueMode || addedPinFavorites || addedAutoQueue || addedQueueLoop || addedBrowser || addedNextSlot || addedClear || addedTag || collapsedArtists) {
         LAYOUT_REFRESH_DELAYS.forEach((delay, index) => {
             scheduleNodeTimer(node, `layout_${index}`, delay, () => {
                 if (!isNodeAlive(node)) return;
@@ -460,6 +477,12 @@ function patchExistingNodes() {
         ensureNodeUi(node);
     }
 }
+
+AutoCycle.subscribe(({ node }) => {
+    if (!node) return;
+    ensureNodeUi(node, true);
+    refreshNodeCanvas(node);
+});
 
 app.registerExtension({
     name: "AnimaArtistBrowser",
