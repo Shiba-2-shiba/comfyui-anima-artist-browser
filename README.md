@@ -92,7 +92,7 @@ Anima Artist Browser
 
 `Pin Favorites` を `On` にすると、現在スロットに入っていて favorites 登録済みの artist は固定したまま、残りの枠だけを更新します。
 
-### Clear Styles
+### Clear Artist
 
 `artist_1..3` をすべて空にします。
 
@@ -113,9 +113,10 @@ Anima Artist Browser
 
 1 ノードで最大 3 人分のアーティストを保持し、1 本の artist 文字列として出力できます。
 
-### ランダム件数指定
+### Filled Slot Count Preservation
 
-ランダム選択時に、何人ぶんのアーティストを一括で入れるかを `1 / 2 / 3` から選べます。
+`Random Artist` は、現在埋まっているスロット数だけを対象に更新します。  
+たとえば 2 スロットだけ埋まっている場合は、3 枠目を勝手に増やさず 2 枠だけを再抽選します。
 
 ### お気に入り固定ランダム
 
@@ -128,6 +129,25 @@ favorites に登録済みで、かつ現在スロットに入っている artist
 ### スタイルデータ更新
 
 内蔵のアーティストデータベースを手動で更新できます。
+
+---
+
+## フロントエンド構成
+
+リファクタリング後の主な責務は次の通りです。
+
+* `js/index.js`
+  ComfyUI 拡張エントリポイント
+* `js/queue_behavior.js`
+  queue hook と after-queue 更新
+* `js/node_ui.js`
+  ノード widget/UI 注入
+* `js/node_runtime.js`
+  ノード runtime 状態と timer
+* `js/browser.js`
+  ブラウザ側 composition root
+
+より詳しい責務分割は [ARCHITECTURE.md](./ARCHITECTURE.md) を参照してください。
 
 ---
 

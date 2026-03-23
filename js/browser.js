@@ -46,6 +46,7 @@ const view = createBrowserView({
 });
 
 const bootstrap = createBrowserBootstrap({
+    api,
     store,
     controller,
     view,
@@ -82,14 +83,8 @@ function cycleBtn() {
     return document.getElementById("anima-cycle-btn");
 }
 
-function cycleStatus() {
-    return document.getElementById("anima-cycle-status");
-}
-
 export const Browser = {
     open,
     close,
     cycleBtn,
-    cycleStatus,
-    highlight: view.highlight,
 };

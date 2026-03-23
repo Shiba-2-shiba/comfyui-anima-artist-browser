@@ -229,7 +229,7 @@ Use the following status markers:
 | Phase 2. Extract Node UI Wiring | done | Widget builders, ordering, and tag display were extracted from `js/index.js`. |
 | Phase 3. Extract Node Runtime State | done | Resize persistence, timer helpers, and slot/tag runtime state are now managed through `js/node_runtime.js`. |
 | Phase 4. Normalize Browser Boundaries | done | Browser bootstrap was extracted and extension points are now documented. |
-| Phase 5. Verification And Cleanup | pending | Final pass. |
+| Phase 5. Verification And Cleanup | in_progress | Dead code cleanup and documentation updates are complete; final regression confirmation remains. |
 
 ## Task Breakdown
 
@@ -310,51 +310,20 @@ Use the following status markers:
 ### Task Group F. Final Cleanup
 
 - `F1` Remove any dead code introduced by extraction
-  - Status: pending
+  - Status: done
   - Acceptance: no obsolete helper remains
+  - Notes: Redundant browser exports and bootstrap-only coupling were trimmed after the extractions.
 - `F2` Update documentation to reflect the new structure
-  - Status: pending
+  - Status: done
   - Acceptance: file responsibilities are documented
+  - Notes: `ARCHITECTURE.md`, `README.md`, and this plan now reflect the extracted module structure.
 - `F3` Run final manual regression pass
   - Status: pending
   - Acceptance: all baseline behaviors are verified
 
 ## Manual Regression Checklist
 
-This checklist should be run after each phase that touches behavior.
-
-### Core Node
-
-- Create the node and confirm it renders correctly.
-- Confirm slot summary is visible.
-- Confirm selecting artists updates the correct slot.
-- Confirm clear resets all slots.
-
-### Browser
-
-- Open browser from node.
-- Apply artist normally.
-- Apply artist to specific slot.
-- Confirm favorites can be added and removed.
-- Confirm pinned favorites are respected.
-
-### Queue Behavior
-
-- `After Queue = Fixed`
-  - Queue should preserve current slots.
-- `After Queue = Next Artist`
-  - Queue should submit current slots and then advance for next run.
-- `After Queue = Random Artist`
-  - Queue should submit current slots and then randomize only the filled slot count.
-- Repeat each of the above with `Auto Queue = Off`.
-- Repeat each of the above with `Auto Queue = On`.
-
-### Queue Loop
-
-- Start queue loop.
-- Confirm play/stop UI updates.
-- Confirm loop behavior still advances as expected.
-- Confirm stopping exits cleanly.
+Use [MANUAL_REGRESSION_CHECKLIST.md](./MANUAL_REGRESSION_CHECKLIST.md) for the current step-by-step regression flow.
 
 ## Risks
 
@@ -374,4 +343,4 @@ This checklist should be run after each phase that touches behavior.
 
 The next implementation step is:
 
-- `F1` Remove any dead code introduced by extraction, then finish the documentation cleanup pass.
+- `F3` Run the final manual regression pass using `MANUAL_REGRESSION_CHECKLIST.md`.

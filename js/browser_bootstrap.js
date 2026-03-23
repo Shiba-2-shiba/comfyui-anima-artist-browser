@@ -1,6 +1,7 @@
 import { AutoCycle } from "./autocycle.js";
 
 export function createBrowserBootstrap({
+    api,
     store,
     controller,
     view,
@@ -28,7 +29,7 @@ export function createBrowserBootstrap({
     function attachEvents() {
         attachBrowserEvents({
             el: store.el,
-            api: controller.api,
+            api,
             localHeaders: controller.localHeaders,
             ensureLocalToken: controller.ensureLocalToken,
             getCategory: () => store.category,

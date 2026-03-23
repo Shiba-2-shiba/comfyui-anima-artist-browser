@@ -97,7 +97,6 @@ export function createBrowserController({
     }
 
     return {
-        api,
         localHeaders,
         ensureLocalToken,
         loadLocalFavorites,
