@@ -1,6 +1,5 @@
 import json
 import os
-import random
 import threading
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -69,12 +68,3 @@ def load_artists():
         _cache_mtime = mtime
 
     return normalized
-
-
-def list_artist_tags():
-    return sorted(artist["tag"] for artist in load_artists() if "tag" in artist)
-
-
-def pick_random_artist():
-    artists = load_artists()
-    return random.choice(artists) if artists else None

@@ -1,10 +1,8 @@
-import json
 import os
 
 from ..stores import favorites_store
 from .image_cache import ensure_artist_image_cached
 
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 MAX_LOCAL_FAVORITES = int(os.getenv("ANIMA_MAX_LOCAL_FAVORITES", "2000"))
 
 
@@ -120,28 +118,3 @@ def remove_local_favorite(key="", item=None):
 def clear_local_favorites():
     favorites_store.save_favorites_items([])
     return []
-
-
-def _get_legacy_custom_style_tags():
-    tags = []
-    try:
-        custom_path = os.path.join(BASE_DIR, "data", "custom_styles.json")
-        if os.path.exists(custom_path):
-            with open(custom_path, "r", encoding="utf-8") as handle:
-                payload = json.load(handle)
-            if isinstance(payload, list):
-                tags = [str(value or "").strip().replace(" ", "_") for value in payload if str(value or "").strip()]
-    except Exception as error:
-        print(f" [AnimaArtistBrowser] Error reading legacy custom styles: {error}")
-    return tags
-
-
-def list_style_favorites():
-    tags = set(_get_legacy_custom_style_tags())
-    for item in list_local_favorites():
-        if str(item.get("kind") or "") != "style":
-            continue
-        tag = str(item.get("tag") or "").strip().replace(" ", "_")
-        if tag:
-            tags.add(tag)
-    return sorted(tags)

@@ -3,7 +3,7 @@ import { injectCSS } from "./styles.js";
 import { Data } from "./data.js";
 import { AutoCycle } from "./autocycle.js";
 import { MAX_ARTIST_SLOTS, clampSlotIndex } from "./slot_state.js";
-import { applyStyle, clearArtistSlots, cycleArtistSlot, getNodeSlotState, replaceArtistSlots, syncArtistState } from "./utils.js";
+import { clearArtistSlots, getNodeSlotState, replaceArtistSlots, syncArtistState } from "./utils.js";
 import {
     readRandomCount,
     writeRandomCount,
@@ -428,10 +428,6 @@ function patchNode(node, force = false) {
         openStyleBrowser(node);
     });
 
-    const addedNextSlot = ensureButtonWidget(node, "Next Slot", () => {
-        cycleArtistSlot(node);
-    });
-
     const addedClear = ensureButtonWidget(node, "Clear Artist", () => {
         clearArtistSlots(node);
     }, ["Clear Styles"]);
@@ -444,7 +440,6 @@ function patchNode(node, force = false) {
         "After Queue",
         "Random Count",
         "Pin Favorites",
-        "Next Slot",
         "Clear Artist",
         "_tag_display",
         "Auto Queue",
@@ -457,7 +452,7 @@ function patchNode(node, force = false) {
 
     growNodeIfNeeded(node);
 
-    if (addedRandom || addedRandomCount || addedQueueMode || addedPinFavorites || addedAutoQueue || addedQueueLoop || addedBrowser || addedNextSlot || addedClear || addedTag || collapsedArtists) {
+    if (addedRandom || addedRandomCount || addedQueueMode || addedPinFavorites || addedAutoQueue || addedQueueLoop || addedBrowser || addedClear || addedTag || collapsedArtists) {
         LAYOUT_REFRESH_DELAYS.forEach((delay, index) => {
             scheduleNodeTimer(node, `layout_${index}`, delay, () => {
                 if (!isNodeAlive(node)) return;

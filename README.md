@@ -91,10 +91,6 @@ Anima Artist Browser
 
 `Pin Favorites` を `On` にすると、現在スロットに入っていて favorites 登録済みの artist は固定したまま、残りの枠だけをランダムで補います。
 
-### Next Slot
-
-現在の上書き対象スロットを `1 -> 2 -> 3 -> 1` の順で切り替えます。
-
 ### Clear Styles
 
 `artist_1..3` をすべて空にします。
