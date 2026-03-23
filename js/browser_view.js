@@ -84,6 +84,10 @@ export function createBrowserView({
                 return await controller.toggleStyleFavorite(selectedArtist, anchorEl, { rerenderFavorites: renderFavorites });
             },
             isFavorited: (selectedArtist) => controller.isFavorited(selectedArtist),
+            getSlotState: () => {
+                if (!store.activeNode) return null;
+                return getNodeSlotState(store.activeNode);
+            },
             getImageUrl: (artist) => thumbUrl(artist, false),
             getTitle: (artist) => String(artist?.tag || "").replace(/_/g, " "),
         });

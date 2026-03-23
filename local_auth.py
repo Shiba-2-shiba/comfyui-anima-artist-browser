@@ -2,6 +2,7 @@ import base64
 import hmac
 import ipaddress
 import os
+from urllib.parse import urlparse
 
 from aiohttp import web
 
@@ -42,6 +43,26 @@ def get_local_token(request=None):
     if request is not None and not is_local_request(request):
         return ""
     return _local_api_token
+
+
+def is_same_origin_request(request):
+    sec_fetch_site = str(request.headers.get("Sec-Fetch-Site") or "").strip().lower()
+    if sec_fetch_site == "same-origin":
+        return True
+
+    host = str(request.headers.get("Host") or getattr(request, "host", "") or "").strip().lower()
+    if not host:
+        return False
+
+    for header_name in ("Origin", "Referer"):
+        value = str(request.headers.get(header_name) or "").strip()
+        if not value:
+            continue
+        parsed = urlparse(value)
+        if str(parsed.netloc or "").strip().lower() == host:
+            return True
+
+    return False
 
 
 def has_valid_local_token(request):

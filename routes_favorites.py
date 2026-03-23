@@ -10,7 +10,7 @@ from .services.favorites_service import (
 )
 
 
-def register_favorite_routes(server, require_local_token):
+def register_favorite_routes(server, require_local_token, is_same_origin_request=None):
     @server.instance.routes.get("/anima/favorites")
     async def get_favorites(request):
         return web.json_response({"items": list_local_favorites()})
@@ -18,7 +18,8 @@ def register_favorite_routes(server, require_local_token):
     @server.instance.routes.post("/anima/favorites")
     async def mutate_favorites(request):
         denied = require_local_token(request)
-        if denied is not None:
+        allow_same_origin = callable(is_same_origin_request) and is_same_origin_request(request)
+        if denied is not None and not allow_same_origin:
             return denied
 
         try:

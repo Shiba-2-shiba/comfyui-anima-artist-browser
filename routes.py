@@ -9,4 +9,8 @@ def register(server):
         require_local_token=local_auth.require_local_token,
         get_local_token=local_auth.get_local_token,
     )
-    register_favorite_routes(server, require_local_token=local_auth.require_local_token)
+    register_favorite_routes(
+        server,
+        require_local_token=local_auth.require_local_token,
+        is_same_origin_request=local_auth.is_same_origin_request,
+    )
