@@ -5,11 +5,21 @@ export const ANIMA_PIN_FAVORITES_KEY = "_anima_pin_favorites";
 export const ANIMA_QUEUE_MODE_KEY = "_anima_queue_mode";
 export const ANIMA_AUTO_QUEUE_KEY = "_anima_auto_queue";
 
+const WIDGET_RANDOM_COUNT = "Random Count";
+const WIDGET_PIN_FAVORITES = "Pin Favorites";
+const WIDGET_QUEUE_MODE = "After Queue";
+const WIDGET_AUTO_QUEUE = "Auto Queue";
+
 function ensureNodeProperties(node) {
     if (!node?.properties || typeof node.properties !== "object") {
         node.properties = {};
     }
     return node.properties;
+}
+
+function getWidgetValue(node, name) {
+    const widget = node?.widgets?.find((item) => String(item?.name || "") === name);
+    return widget?.value;
 }
 
 function normalizeTag(value) {
@@ -56,6 +66,13 @@ export function normalizeRandomCount(value) {
 
 export function readRandomCount(node) {
     const props = ensureNodeProperties(node);
+    const widgetValue = getWidgetValue(node, WIDGET_RANDOM_COUNT);
+    if (widgetValue != null && widgetValue !== "") {
+        const normalized = normalizeRandomCount(widgetValue);
+        props[ANIMA_RANDOM_COUNT_KEY] = normalized;
+        return normalized;
+    }
+
     return normalizeRandomCount(props[ANIMA_RANDOM_COUNT_KEY]);
 }
 
@@ -68,6 +85,13 @@ export function writeRandomCount(node, value) {
 
 export function readPinFavorites(node) {
     const props = ensureNodeProperties(node);
+    const widgetValue = getWidgetValue(node, WIDGET_PIN_FAVORITES);
+    if (widgetValue != null && widgetValue !== "") {
+        const normalized = String(widgetValue).toLowerCase() === "on" ? "on" : "off";
+        props[ANIMA_PIN_FAVORITES_KEY] = normalized;
+        return normalized === "on";
+    }
+
     return String(props[ANIMA_PIN_FAVORITES_KEY] || "off").toLowerCase() === "on";
 }
 
@@ -89,6 +113,13 @@ export function normalizeQueueMode(value) {
 
 export function readQueueMode(node) {
     const props = ensureNodeProperties(node);
+    const widgetValue = getWidgetValue(node, WIDGET_QUEUE_MODE);
+    if (widgetValue != null && widgetValue !== "") {
+        const normalized = normalizeQueueMode(widgetValue);
+        props[ANIMA_QUEUE_MODE_KEY] = normalized;
+        return normalized;
+    }
+
     return normalizeQueueMode(props[ANIMA_QUEUE_MODE_KEY]);
 }
 
@@ -101,6 +132,13 @@ export function writeQueueMode(node, value) {
 
 export function readAutoQueue(node) {
     const props = ensureNodeProperties(node);
+    const widgetValue = getWidgetValue(node, WIDGET_AUTO_QUEUE);
+    if (widgetValue != null && widgetValue !== "") {
+        const normalized = String(widgetValue).toLowerCase() === "on" ? "on" : "off";
+        props[ANIMA_AUTO_QUEUE_KEY] = normalized;
+        return normalized === "on";
+    }
+
     return String(props[ANIMA_AUTO_QUEUE_KEY] || "off").toLowerCase() === "on";
 }
 
