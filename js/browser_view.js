@@ -59,10 +59,16 @@ export function createBrowserView({
         if (Number.isInteger(options.slotIndex) && store.activeNode) {
             setActiveSlot(options.slotIndex);
         }
-        await store.onPick?.(artist, options);
+        const result = await store.onPick?.(artist, options);
+        if (result?.ok === false) {
+            showToast(result.error || "Could not apply artist", "error", 1800, { anchor: anchorEl });
+            return result;
+        }
         highlight(artist?.tag || "");
         refreshSlotSummary();
-        showToast(`Applied @${String(artist?.tag || "").replace(/_/g, " ")}`, "success", 1500, { anchor: anchorEl });
+        const slotLabel = Number.isInteger(result?.slotIndex) ? ` to S${result.slotIndex + 1}` : "";
+        showToast(`Applied @${String(artist?.tag || "").replace(/_/g, " ")}${slotLabel}`, "success", 1500, { anchor: anchorEl });
+        return result;
     }
 
     async function openSwipe(startIndex) {
@@ -73,9 +79,11 @@ export function createBrowserView({
         swipe.open({
             list: store.lastList,
             startIndex: boundedStart,
-            onApply: (artist) => {
-                applyArtist(artist);
+            onApply: (artist, anchorEl = null) => applyArtist(artist, anchorEl),
+            onToggleFavorite: async (selectedArtist, anchorEl = null) => {
+                return await controller.toggleStyleFavorite(selectedArtist, anchorEl, { rerenderFavorites: renderFavorites });
             },
+            isFavorited: (selectedArtist) => controller.isFavorited(selectedArtist),
             getImageUrl: (artist) => thumbUrl(artist, false),
             getTitle: (artist) => String(artist?.tag || "").replace(/_/g, " "),
         });

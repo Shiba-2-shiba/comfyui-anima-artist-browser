@@ -169,6 +169,10 @@ input:checked + .hdr-slider:before { transform:translateX(14px); background-colo
 #anima-swipe .swipe-header { position:absolute; top:18px; left:0; width:100%; display:flex; align-items:center; justify-content:space-between; padding:0 20px; color:#e0e0f0; z-index:2; }
 #anima-swipe .swipe-title { position:absolute; left:50%; transform:translateX(-50%); text-align:center; font-size:24px; font-weight:700; text-shadow:0 2px 8px rgba(0,0,0,.5); }
 #anima-swipe .swipe-counter { font-size:12px; font-family:'JetBrains Mono',monospace; background:rgba(0,0,0,.4); padding:6px 12px; border-radius:999px; border:1px solid #2a2a40; color:#c0c0d0; user-select:none; }
+#anima-swipe .swipe-actions { display:flex; align-items:center; gap:10px; margin-left:auto; }
+#anima-swipe .swipe-favorite { min-height:38px; padding:0 14px; border-radius:999px; border:1px solid #2f4468; background:rgba(9,16,30,.55); color:#c8d7fb; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:11px; transition:background .15s,color .15s,border-color .15s; }
+#anima-swipe .swipe-favorite:hover { background:rgba(18,28,50,.72); border-color:#5273ac; color:#f2f6ff; }
+#anima-swipe .swipe-favorite[data-active="true"] { border-color:#4f7a54; background:rgba(12,32,20,.72); color:#d4f7dc; }
 #anima-swipe .swipe-close { width:38px; height:38px; border-radius:10px; background:rgba(0,0,0,.25); border:1px solid #2a2a40; color:#c0c0d0; cursor:pointer; font-size:16px; line-height:1; display:flex; align-items:center; justify-content:center; transition:background .15s,color .15s,transform .15s; }
 #anima-swipe .swipe-close:hover { background:rgba(0,0,0,.45); color:#fff; transform:scale(1.05); }
 #anima-swipe .swipe-container { position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center; z-index:1; overflow:hidden; }
@@ -179,6 +183,14 @@ input:checked + .hdr-slider:before { transform:translateX(14px); background-colo
 #anima-swipe .swipe-image--prev { transform:scale(.8) translateX(-50vw); }
 #anima-swipe .swipe-image--next { transform:scale(.8) translateX(50vw); }
 #anima-swipe .swipe-hint { position:absolute; bottom:18px; z-index:2; font-size:12px; color:#9090b0; background:rgba(0,0,0,.35); padding:6px 12px; border-radius:999px; border:1px solid #1a1a24; font-family:'JetBrains Mono',monospace; user-select:none; }
+@media (max-width: 900px) {
+    #anima-swipe .swipe-header { top:14px; padding:0 14px; }
+    #anima-swipe .swipe-title { top:54px; width:calc(100% - 28px); font-size:18px; }
+    #anima-swipe .swipe-actions { gap:8px; }
+    #anima-swipe .swipe-favorite { min-height:34px; padding:0 10px; font-size:10px; }
+    #anima-swipe .swipe-close { width:34px; height:34px; }
+    #anima-swipe .swipe-hint { left:12px; right:12px; bottom:12px; text-align:center; white-space:normal; }
+}
 
 #anima-toast-host {
     position:fixed;
