@@ -5,6 +5,7 @@ import { logError, logWarn } from "./logger.js";
 import { applyStyle, getNodeSlotState, replaceArtistSlots, setCurrentArtistSlot } from "./utils.js";
 import {
     loadFavoriteTagSet,
+    queueModeNeedsFavoriteTags,
     readAutoQueue,
     readPinFavorites,
     readQueueMode,
@@ -48,6 +49,7 @@ export const AutoCycle = (() => {
         if (mode === "fixed") return "Fixed";
         if (mode === "next_artist") return "Next Artist";
         if (mode === "random_artist") return "Random Artist";
+        if (mode === "favorite_random") return "Favorite Random";
         return "Fixed";
     }
 
@@ -86,7 +88,9 @@ export const AutoCycle = (() => {
 
             const previousState = getNodeSlotState(_node);
             const pinFavorites = readPinFavorites(_node);
-            const favoriteTags = pinFavorites ? await loadFavoriteTagSet(fetch) : new Set();
+            const favoriteTags = queueModeNeedsFavoriteTags(mode, pinFavorites)
+                ? await loadFavoriteTagSet(fetch)
+                : new Set();
             const {
                 nextState,
                 changes,
