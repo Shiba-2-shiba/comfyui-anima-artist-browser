@@ -5,9 +5,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 from .artist_sync import download_artists
 from .artist_repository import load_artists
+from .preview_files import artist_image_path
 
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-ARTIST_IMAGE_DIR = os.path.join(BASE_DIR, "js", "images")
 ARTIST_IMAGE_BASE_URL = "https://thetacursed.github.io/Anima-Style-Explorer/images"
 
 _download_status = {
@@ -28,7 +27,7 @@ def image_target(item):
         return "", "", ""
 
     url = f"{ARTIST_IMAGE_BASE_URL}/{page_id}/{artist_id}.webp"
-    path = os.path.join(ARTIST_IMAGE_DIR, str(page_id), f"{artist_id}.webp")
+    path = artist_image_path(page_id, artist_id)
     return artist_id, url, path
 
 

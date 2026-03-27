@@ -13,15 +13,21 @@ export function getBrowserTemplate() {
                     </select>
                     <div class="hdr-gap"></div>
                     <div class="hdr-data-btns">
-                        <div class="hdr-settings-wrap" title="Tools">
-                            <button class="hdr-btn" id="anima-settings-gear" aria-label="Tools">&#9881;</button>
-                            <div class="hdr-settings-menu">
-                                <button class="hdr-btn-txt hdr-settings-item" id="anima-sync-local">Sync Local Snapshot</button>
-                            </div>
-                        </div>
+                        <span class="hdr-sync-warning" title="Local snapshot download size estimate">Approx. 750 MB download</span>
+                        <button class="hdr-sync-btn" id="anima-sync-local" title="Download artist data and preview images into this custom node folder">Sync Local Snapshot</button>
                         <button class="hdr-btn" id="anima-refresh" title="Refresh View">&#8635;</button>
                     </div>
                     <button class="hdr-close" title="Close" style="margin-left:8px">&#10005;</button>
+                </div>
+                <div class="sync-strip" id="anima-sync-strip" data-state="idle">
+                    <div class="sync-strip-copy">
+                        <span class="sync-strip-label">Local Snapshot</span>
+                        <span class="sync-strip-status" id="anima-sync-status">Normal browsing uses local files only. Run sync to refresh the snapshot.</span>
+                    </div>
+                    <div class="sync-strip-progress" aria-hidden="true">
+                        <div class="sync-strip-progress-bar" id="anima-sync-progress-bar" style="width:0%"></div>
+                    </div>
+                    <span class="sync-strip-count" id="anima-sync-progress-text">Idle</span>
                 </div>
                 <div class="cycle-bar">
                     <span class="cycle-label">Queue Mode</span>

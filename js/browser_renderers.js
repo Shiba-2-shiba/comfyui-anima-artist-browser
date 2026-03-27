@@ -7,10 +7,18 @@ export function renderChunkedGrid({
     renderItem,
     append = false,
 }) {
+    const scrollRoot = grid?.closest?.(".body") || null;
+    const previousCleanup = grid?._chunkCleanup;
+    if (typeof previousCleanup === "function") {
+        previousCleanup();
+    }
+
     if (!append) {
         if (observer) observer.disconnect();
         grid.innerHTML = "";
     }
+
+    const chunks = [];
 
     for (let i = 0; i < items.length; i += chunkSize) {
         const chunkItems = items.slice(i, i + chunkSize);
@@ -34,7 +42,64 @@ export function renderChunkedGrid({
         };
         grid.appendChild(chunk);
         observer?.observe(chunk);
+        chunks.push(chunk);
     }
+
+    const preloadMargin = 900;
+    const releaseMargin = 2200;
+
+    const syncChunkMounts = () => {
+        if (!chunks.length) return;
+
+        if (!scrollRoot) {
+            chunks.slice(0, 3).forEach((chunk) => chunk._mount?.());
+            return;
+        }
+
+        const top = scrollRoot.scrollTop;
+        const bottom = top + scrollRoot.clientHeight;
+
+        chunks.forEach((chunk, index) => {
+            const chunkTop = chunk.offsetTop;
+            const chunkHeight = chunk.offsetHeight || parseFloat(chunk.style.minHeight) || 0;
+            const chunkBottom = chunkTop + chunkHeight;
+            const nearViewport = chunkBottom >= top - preloadMargin && chunkTop <= bottom + preloadMargin;
+            const farFromViewport = chunkBottom < top - releaseMargin || chunkTop > bottom + releaseMargin;
+
+            if (nearViewport || index < 2) {
+                chunk._mount?.();
+            } else if (farFromViewport) {
+                chunk._unmount?.();
+            }
+        });
+    };
+
+    let scheduled = false;
+    const scheduleSync = () => {
+        if (scheduled) return;
+        scheduled = true;
+        requestAnimationFrame(() => {
+            scheduled = false;
+            syncChunkMounts();
+        });
+    };
+
+    if (scrollRoot) {
+        const onScroll = () => {
+            scheduleSync();
+        };
+        scrollRoot.addEventListener("scroll", onScroll, { passive: true });
+        grid._chunkCleanup = () => {
+            scrollRoot.removeEventListener("scroll", onScroll);
+        };
+    } else {
+        grid._chunkCleanup = null;
+    }
+
+    scheduleSync();
+    requestAnimationFrame(() => {
+        scheduleSync();
+    });
 }
 
 function normalizeSearchText(value = "") {

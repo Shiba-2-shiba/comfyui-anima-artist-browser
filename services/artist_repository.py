@@ -2,6 +2,8 @@ import json
 import os
 import threading
 
+from .preview_files import artist_image_exists, artist_image_url, artist_image_version
+
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 ARTISTS_DATA_PATH = os.path.join(BASE_DIR, "data", "artists.json")
 
@@ -25,6 +27,14 @@ def normalize_artist_record(item):
     normalized.setdefault("works", normalized.get("post_count", 0))
     normalized.setdefault("p", 1)
     normalized.setdefault("uniqueness_score", 0)
+    preview_cached = artist_image_exists(normalized.get("p", 1), normalized.get("id", ""))
+    normalized["localPreviewCached"] = preview_cached
+    if preview_cached:
+        image_url = artist_image_url(normalized.get("p", 1), normalized.get("id", ""))
+        image_version = artist_image_version(normalized.get("p", 1), normalized.get("id", ""))
+        normalized["localImageUrl"] = f"{image_url}?v={image_version}" if image_version else image_url
+    else:
+        normalized["localImageUrl"] = ""
     return normalized
 
 

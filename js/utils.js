@@ -13,11 +13,15 @@ export function thumbUrl(artist, useCustom = false) {
     const id = artist.id ?? "";
     if (!id) return "";
 
-    if (useCustom) {
-        return `/anima/images/custom/${id}.webp`;
+    if (typeof artist.localImageUrl === "string" && artist.localImageUrl) {
+        return artist.localImageUrl;
     }
 
     const page = artist.p ?? 1;
+    if (useCustom) {
+        return `/anima/images/${page}/${id}.webp`;
+    }
+
     return `/anima/images/${page}/${id}.webp`;
 }
 

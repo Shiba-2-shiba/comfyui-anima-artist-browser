@@ -20,7 +20,7 @@ export function createStyleCard({
 
     card.innerHTML = `
         <div class="anima-card-img" data-init="${escapeHtml((artist.tag?.[0] || "?").toUpperCase())}">
-            <img loading="lazy" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(artist.tag || "")}" onerror="this.style.display='none';this.parentElement.classList.add('no-img')"/>
+            <img loading="eager" decoding="async" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(artist.tag || "")}" onerror="this.style.display='none';this.parentElement.classList.add('no-img')"/>
             ${rankHtml}
             <div class="anima-card-favorite-badge${isFav ? " active" : ""}" title="Favorited">&#10084;</div>
             <div class="anima-card-overlay">

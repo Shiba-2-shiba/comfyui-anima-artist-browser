@@ -10,21 +10,33 @@ from .services.image_cache import (
     start_artist_image_download,
     start_local_snapshot_sync,
 )
+from .services.preview_files import resolve_requested_image
 
 
 def register_core_routes(server, require_local_token=None, get_local_token=None):
-    try:
-        img_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "js", "images"))
-        os.makedirs(img_path, exist_ok=True)
-        server.instance.app.router.add_static("/anima/images/", img_path, show_index=False, follow_symlinks=False)
-        print(f" [AnimaArtistBrowser] Static route registered: /anima/images/ -> {img_path}")
-    except Exception as e:
-        print(f" [AnimaArtistBrowser] Static route error: {e}")
-
     @server.instance.routes.get("/anima/artists")
     async def get_artists(request):
         artists = await asyncio.to_thread(load_artists)
         return web.json_response(artists)
+
+    @server.instance.routes.get(r"/anima/images/{page:\d+}/{filename}")
+    async def get_artist_image(request):
+        page_id, artist_id, path = resolve_requested_image(
+            request.match_info.get("page", "1"),
+            request.match_info.get("filename", ""),
+        )
+        if not path:
+            raise web.HTTPBadRequest(text="Invalid image request.")
+        if not artist_id:
+            raise web.HTTPNotFound()
+        if not os.path.exists(path):
+            raise web.HTTPNotFound()
+
+        return web.FileResponse(path, headers={
+            "Cache-Control": "public, max-age=3600",
+            "X-Anima-Image-Page": str(page_id),
+            "X-Anima-Image-Id": artist_id,
+        })
 
     @server.instance.routes.get("/anima/local_token")
     async def get_local_token_route(request):
