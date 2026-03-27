@@ -1,4 +1,4 @@
-export function getBrowserTemplate(siteBase) {
+export function getBrowserTemplate() {
     return `
             <div class="backdrop"></div>
             <div class="window">
@@ -13,18 +13,10 @@ export function getBrowserTemplate(siteBase) {
                     </select>
                     <div class="hdr-gap"></div>
                     <div class="hdr-data-btns">
-                        <div class="hdr-toggle-wrap" title="Show remote preview images from the internet">
-                            <span class="hdr-toggle-label">Remote Images</span>
-                            <label class="hdr-switch">
-                                <input type="checkbox" id="anima-online-toggle"/>
-                                <span class="hdr-slider"></span>
-                            </label>
-                        </div>
                         <div class="hdr-settings-wrap" title="Tools">
                             <button class="hdr-btn" id="anima-settings-gear" aria-label="Tools">&#9881;</button>
                             <div class="hdr-settings-menu">
-                                <button class="hdr-btn-txt hdr-settings-item" id="anima-update-styles">Update Styles</button>
-                                <button class="hdr-btn-txt hdr-settings-item" id="anima-dl-images">Download Previews</button>
+                                <button class="hdr-btn-txt hdr-settings-item" id="anima-sync-local">Sync Local Snapshot</button>
                             </div>
                         </div>
                         <button class="hdr-btn" id="anima-refresh" title="Refresh View">&#8635;</button>
@@ -74,9 +66,9 @@ export function getBrowserTemplate(siteBase) {
                 <div class="ftr">
                     <span class="ftr-count" id="anima-count"></span>
                     <span class="ftr-count"> | </span>
-                    <span class="ftr-count">Local style browser workflow</span>
+                    <span class="ftr-count">Local snapshot only during normal use</span>
                     <div class="ftr-gap"></div>
-                    <a class="ftr-link" href="${siteBase}" target="_blank" rel="noopener">thetacursed.github.io/Anima-Style-Explorer -&gt;</a>
+                    <span class="ftr-count">Remote sync is manual and local-only</span>
                 </div>
             </div>
     `;

@@ -5,7 +5,11 @@ from aiohttp import web
 
 from .services.artist_repository import load_artists
 from .services.artist_sync import download_artists
-from .services.image_cache import get_artist_image_download_status, start_artist_image_download
+from .services.image_cache import (
+    get_artist_image_download_status,
+    start_artist_image_download,
+    start_local_snapshot_sync,
+)
 
 
 def register_core_routes(server, require_local_token=None, get_local_token=None):
@@ -47,6 +51,15 @@ def register_core_routes(server, require_local_token=None, get_local_token=None)
             if denied is not None:
                 return denied
         success = await asyncio.to_thread(start_artist_image_download)
+        return web.json_response({"success": success})
+
+    @server.instance.routes.post("/anima/sync_local_snapshot")
+    async def sync_local_snapshot(request):
+        if require_local_token is not None:
+            denied = require_local_token(request)
+            if denied is not None:
+                return denied
+        success = await asyncio.to_thread(start_local_snapshot_sync)
         return web.json_response({"success": success})
 
     @server.instance.routes.get("/anima/download_status")

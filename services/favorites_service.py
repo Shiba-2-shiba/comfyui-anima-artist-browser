@@ -1,7 +1,6 @@
 import os
 
 from ..stores import favorites_store
-from .image_cache import ensure_artist_image_cached
 
 MAX_LOCAL_FAVORITES = int(os.getenv("ANIMA_MAX_LOCAL_FAVORITES", "2000"))
 
@@ -89,9 +88,6 @@ def upsert_local_favorite(item):
     entry = normalize_local_favorite(item)
     if not entry:
         return None
-
-    if entry.get("kind") == "style" and entry.get("id"):
-        entry["localPreviewCached"] = bool(entry.get("localPreviewCached") or ensure_artist_image_cached(entry))
 
     items = [candidate for candidate in list_local_favorites() if str(candidate.get("key") or "") != entry.get("key")]
     items.append(entry)

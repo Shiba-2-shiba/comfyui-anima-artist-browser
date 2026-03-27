@@ -8,7 +8,6 @@ export function createBrowserBootstrap({
     dataApi,
     attachBrowserEvents,
     getBrowserTemplate,
-    siteBase,
     bindBrowserElements,
     setBrowserCategory,
     close,
@@ -78,7 +77,7 @@ export function createBrowserBootstrap({
         const el = document.createElement("div");
         el.id = "anima-browser";
         el.className = "hidden";
-        el.innerHTML = getBrowserTemplate(siteBase);
+        el.innerHTML = getBrowserTemplate();
 
         document.body.appendChild(el);
         bindBrowserElements(store, el);

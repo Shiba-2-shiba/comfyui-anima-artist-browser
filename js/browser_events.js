@@ -20,16 +20,6 @@ export function attachBrowserEvents({
     openSwipeFromHighlighted,
     loadLocalFavorites,
 }) {
-    const onlineToggle = el.querySelector("#anima-online-toggle");
-    if (localStorage.getItem("anima_online") === null) {
-        localStorage.setItem("anima_online", "true");
-    }
-    onlineToggle.checked = localStorage.getItem("anima_online") === "true";
-    onlineToggle.addEventListener("change", (e) => {
-        localStorage.setItem("anima_online", e.target.checked);
-        render();
-    });
-
     const ensureHeadersReady = async () => {
         const ok = await ensureLocalToken();
         if (!ok) {
@@ -54,12 +44,12 @@ export function attachBrowserEvents({
         close();
     };
 
-    const dlBtn = el.querySelector("#anima-dl-images");
+    const syncBtn = el.querySelector("#anima-sync-local");
 
-    function resetDownloadButton(delay = 0) {
+    function resetSyncButton(delay = 0) {
         const applyReset = () => {
-            dlBtn.textContent = "Download Previews";
-            dlBtn.classList.remove("disabled");
+            syncBtn.textContent = "Sync Local Snapshot";
+            syncBtn.classList.remove("disabled");
         };
 
         if (delay > 0) {
@@ -70,33 +60,43 @@ export function attachBrowserEvents({
         applyReset();
     }
 
-    async function pollDownloadStatus() {
+    async function pollSyncStatus() {
         try {
-            dlBtn.classList.add("disabled");
+            syncBtn.classList.add("disabled");
             const statusResponse = await api.fetchApi("/anima/download_status");
             const status = await statusResponse.json();
             if (status.active) {
-                dlBtn.textContent = `Downloading ${status.done}/${status.total}...`;
+                const phase = String(status.phase || "").trim();
+                if (phase === "artist_data") {
+                    syncBtn.textContent = "Syncing artist data...";
+                } else {
+                    syncBtn.textContent = `Syncing previews ${status.done}/${status.total}...`;
+                }
                 setTimeout(() => {
-                    void pollDownloadStatus();
+                    void pollSyncStatus();
                 }, 1000);
                 return;
             }
 
-            dlBtn.textContent = "Download Complete!";
-            dlBtn.classList.remove("disabled");
-            resetDownloadButton(3000);
+            const syncSucceeded = status.phase === "complete";
+            syncBtn.textContent = syncSucceeded ? "Snapshot Ready!" : "Sync Failed";
+            syncBtn.classList.remove("disabled");
+            resetSyncButton(3000);
+            if (syncSucceeded) {
+                dataReset();
+            }
             await render();
         } catch (error) {
-            resetDownloadButton();
-            reportActionFailure("Failed while polling preview download status", error, "Could not refresh preview download status.");
+            resetSyncButton();
+            reportActionFailure("Failed while polling local snapshot sync status", error, "Could not refresh sync status.");
         }
     }
 
-    dlBtn.addEventListener("click", async () => {
-        if (dlBtn.classList.contains("disabled")) return;
+    syncBtn.addEventListener("click", async () => {
+        if (syncBtn.classList.contains("disabled")) return;
         const ok = confirm(
-            "This will download preview images for up to 20,000 styles.\n\n"
+            "This will download artist data and local preview images into this custom node folder.\n\n"
+            + "Normal browsing will stay local-only after the sync completes.\n\n"
             + "It can take a long time and may use hundreds of MB.\n\n"
             + "Continue?"
         );
@@ -104,15 +104,15 @@ export function attachBrowserEvents({
 
         try {
             const headers = await ensureHeadersReady();
-            const response = await api.fetchApi("/anima/download_images", { method: "POST", headers });
+            const response = await api.fetchApi("/anima/sync_local_snapshot", { method: "POST", headers });
             const payload = await response.json().catch(() => ({}));
             if (!payload.success) {
-                alert("Download already in progress or failed to start.");
+                alert("Sync is already running or failed to start.");
                 return;
             }
-            void pollDownloadStatus();
+            void pollSyncStatus();
         } catch (err) {
-            reportActionFailure("Failed to start preview download", err, err?.message || "Could not start preview download.");
+            reportActionFailure("Failed to start local snapshot sync", err, err?.message || "Could not start local snapshot sync.");
         }
     });
 
@@ -149,32 +149,6 @@ export function attachBrowserEvents({
             setFilter(e.target.value.replace(/^@/, ""));
             render();
         }, 150);
-    });
-
-    const updateBtn = el.querySelector("#anima-update-styles");
-    updateBtn.addEventListener("click", async () => {
-        if (updateBtn.classList.contains("disabled")) return;
-        updateBtn.innerHTML = "Updating...";
-        updateBtn.classList.add("disabled");
-        try {
-            const headers = await ensureHeadersReady();
-            const response = await api.fetchApi("/anima/update", { method: "POST", headers });
-            const payload = await response.json().catch(() => ({}));
-            if (payload.success) {
-                dataReset();
-                await render();
-                updateBtn.innerHTML = "Success!";
-            } else {
-                updateBtn.innerHTML = "Failed!";
-            }
-        } catch (err) {
-            updateBtn.innerHTML = "Error!";
-            reportActionFailure("Failed to update styles", err, err?.message || "Could not update styles.");
-        }
-        setTimeout(() => {
-            updateBtn.innerHTML = "Update Styles";
-            updateBtn.classList.remove("disabled");
-        }, 2000);
     });
 
     el.querySelector(".hdr-select").addEventListener("change", (e) => {

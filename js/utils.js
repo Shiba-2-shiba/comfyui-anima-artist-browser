@@ -1,5 +1,4 @@
 import { app } from "../../scripts/app.js";
-import { CDN_BASE } from "./config.js";
 import { applyNodeSlotState } from "./node_runtime.js";
 import {
     MAX_ARTIST_SLOTS,
@@ -19,17 +18,7 @@ export function thumbUrl(artist, useCustom = false) {
     }
 
     const page = artist.p ?? 1;
-    const preferLocal = !!(artist?._preferLocalThumb || artist?.localPreviewCached);
-    if (preferLocal) {
-        return `/anima/images/${page}/${id}.webp`;
-    }
-
-    const isOnline = localStorage.getItem("anima_online") === "true";
-    if (!isOnline) {
-        return `/anima/images/${page}/${id}.webp`;
-    }
-
-    return `${CDN_BASE}/images/${page}/${id}.webp`;
+    return `/anima/images/${page}/${id}.webp`;
 }
 
 function getWidgetByName(node, name) {

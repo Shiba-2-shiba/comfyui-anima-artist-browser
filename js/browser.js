@@ -18,7 +18,6 @@ import { bindBrowserElements, createBrowserStore, getStoredBrowserCategory, setB
 import { createBrowserView } from "./browser_view.js";
 import { attachBrowserEvents } from "./browser_events.js";
 import { getBrowserTemplate } from "./browser_template.js";
-import { SITE_BASE } from "./config.js";
 
 const store = createBrowserStore();
 
@@ -53,7 +52,6 @@ const bootstrap = createBrowserBootstrap({
     dataApi: Data,
     attachBrowserEvents,
     getBrowserTemplate,
-    siteBase: SITE_BASE,
     bindBrowserElements,
     setBrowserCategory,
     close,
